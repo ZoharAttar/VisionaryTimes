@@ -151,124 +151,129 @@ def _combine_datasets(datasets):
 parser = argparse.ArgumentParser(description='TEMPO')
 
  
+## General Arguments
 
-parser.add_argument('--model_id', type=str, default='tempo_etth1_multi-debug')
+parser.add_argument('--model_id', type=str, default='tempo_etth1_multi-debug') # Specifies a unique identifier for the model instance being trained
 
-parser.add_argument('--checkpoints', type=str, default='checkpoints/')
+parser.add_argument('--checkpoints', type=str, default='checkpoints/') # Directory path where model checkpoints are saved
 
-parser.add_argument('--task_name', type=str, default='long_term_forecast') # new comment bla baldsfj
-
- 
-
- 
-
-parser.add_argument('--prompt', type=int, default=0)
-
-parser.add_argument('--num_nodes', type=int, default=1)
+parser.add_argument('--task_name', type=str, default='long_term_forecast') # Defines the type of task, e.g., classification/anomaly_detection/ long_term_forecast/imputation/ short_term_forecasting
 
  
 
  
 
-parser.add_argument('--seq_len', type=int, default=512)
+parser.add_argument('--prompt', type=int, default=0) # Indicates whether prompt-based training is used (0 = No, 1 = Yes).
 
-parser.add_argument('--pred_len', type=int, default=96)
-
-parser.add_argument('--label_len', type=int, default=48)
+parser.add_argument('--num_nodes', type=int, default=1) # Number of features but always set to 1 ????
 
  
 
-parser.add_argument('--decay_fac', type=float, default=0.9)
+## Sequence and Label Settings
 
-parser.add_argument('--learning_rate', type=float, default=0.001)
+parser.add_argument('--seq_len', type=int, default=512) # Length of the input sequence to the model.
 
-parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--pred_len', type=int, default=96) # Number of steps to predict in the output sequence (horizon)
 
-parser.add_argument('--num_workers', type=int, default=0)
+parser.add_argument('--label_len', type=int, default=48) #  Length of the label sequence used in the training phase to calculate the loss.
 
-parser.add_argument('--train_epochs', type=int, default=10)
+ 
+## Optimization Settings
 
-parser.add_argument('--lradj', type=str, default='type3') # for what
+parser.add_argument('--decay_fac', type=float, default=0.9) # Factor by which learning rate decays during training.
+
+parser.add_argument('--learning_rate', type=float, default=0.001) # Initial learning rate for training.
+
+parser.add_argument('--batch_size', type=int, default=128) # Batch size for training.
+
+parser.add_argument('--num_workers', type=int, default=0) # Number of worker threads for data loading.
+
+parser.add_argument('--train_epochs', type=int, default=10) # Number of training epochs.
+
+parser.add_argument('--lradj', type=str, default='type3') # Learning rate adjustment strategy
 
 parser.add_argument('--patience', type=int, default=5)
 
  
+## Model and Architecture Settings
 
-parser.add_argument('--gpt_layers', type=int, default=6)
+parser.add_argument('--gpt_layers', type=int, default=6) # Number of layers in the GPT
 
-parser.add_argument('--is_gpt', type=int, default=1)
+parser.add_argument('--is_gpt', type=int, default=1) # Flag to indicate whether GPT-style modeling is used (1 = Yes, 0 = No).
 
-parser.add_argument('--e_layers', type=int, default=3)
+parser.add_argument('--e_layers', type=int, default=3) # Number of encoder layers in the model.
 
-parser.add_argument('--d_model', type=int, default=768)
+parser.add_argument('--d_model', type=int, default=768) # Dimensionality of model embeddings.
 
-parser.add_argument('--n_heads', type=int, default=4)
+parser.add_argument('--n_heads', type=int, default=4) # Number of (attention?) heads in the model.
 
-parser.add_argument('--d_ff', type=int, default=768)
+parser.add_argument('--d_ff', type=int, default=768) # Dimensionality of the feed-forward network in the transformer layers.
 
-parser.add_argument('--dropout', type=float, default=0.3)
+parser.add_argument('--dropout', type=float, default=0.3) # Dropout rate used in the model to prevent overfitting.
 
-parser.add_argument('--enc_in', type=int, default=7)
+parser.add_argument('--enc_in', type=int, default=7) # Number of input features for the encoder.
 
-parser.add_argument('--c_out', type=int, default=7)
+parser.add_argument('--c_out', type=int, default=7) # Number of output channels/features.
 
-parser.add_argument('--patch_size', type=int, default=16)
+parser.add_argument('--patch_size', type=int, default=16) # Size of the patches for patch-based learning.
 
-parser.add_argument('--kernel_size', type=int, default=25)
+parser.add_argument('--kernel_size', type=int, default=25) # In TEMPO - define the size of the window over which the moving average is computed
+
+ 
+## Loss and Training Strategy
+
+parser.add_argument('--loss_func', type=str, default='mse') # Loss function used during training
+
+parser.add_argument('--pretrain', type=int, default=1) # Flag to indicate whether to load or not the pre-trained model(GPT2) (1 = Yes, 0 = No).
+
+parser.add_argument('--freeze', type=int, default=1) # Flag to freeze specific model components during fine-tuning (1 = Yes, 0 = No).
+
+parser.add_argument('--model', type=str, default='TEMPO') 
+
+parser.add_argument('--stride', type=int, default=8) # Specifies the number of steps the window moves after each operation
+
+parser.add_argument('--max_len', type=int, default=-1) # Maximum sequence length; -1 indicates no limit.
+
+parser.add_argument('--hid_dim', type=int, default=16) # Hidden dimension size for specific layers.
+
+parser.add_argument('--tmax', type=int, default=10) # The number of epochs or steps over which the learning rate will decrease from its initial value to the minimum (eta_min)
 
  
 
-parser.add_argument('--loss_func', type=str, default='mse')
+parser.add_argument('--itr', type=int, default=3) # Number of iterations for a particular forward pass of the model
 
-parser.add_argument('--pretrain', type=int, default=1)
-
-parser.add_argument('--freeze', type=int, default=1)
-
-parser.add_argument('--model', type=str, default='TEMPO')
-
-parser.add_argument('--stride', type=int, default=8)
-
-parser.add_argument('--max_len', type=int, default=-1)
-
-parser.add_argument('--hid_dim', type=int, default=16)
-
-parser.add_argument('--tmax', type=int, default=10)
-
- 
-
-parser.add_argument('--itr', type=int, default=3)
-
-parser.add_argument('--cos', type=int, default=0)
+parser.add_argument('--cos', type=int, default=0) #  When cos is set to 1, cosine annealing will control the learning rate decay
 
 parser.add_argument('--equal', type=int, default=1, help='1: equal sampling, 0: dont do the equal sampling')
 
 parser.add_argument('--pool', action='store_true', help='whether use prompt pool')
 
-parser.add_argument('--no_stl_loss', action='store_true', help='whether use prompt pool')
+parser.add_argument('--no_stl_loss', action='store_true', help='whether use Season-Trend Loss')
 
  
+# Dataset and Configurations
 
-parser.add_argument('--stl_weight', type=float, default=0.01)
+parser.add_argument('--stl_weight', type=float, default=0.01) # Weight of STL (Season-Trend Loss) in the total loss computation
 
-parser.add_argument('--config_path', type=str, default='./configs/multiple_datasets.yml')
+parser.add_argument('--config_path', type=str, default='./configs/multiple_datasets.yml') # Path to the configuration YAML file for multiple datasets
 
-parser.add_argument('--datasets', type=str, default='ETTh1')
+parser.add_argument('--datasets', type=str, default='ETTh1') # Specifies the datasets used for training
 
-parser.add_argument('--target_data', type=str, default='ETTh1')
+parser.add_argument('--target_data', type=str, default='ETTh1') # Indicates the target dataset for forecasting.
 
 #eval_data
 
-parser.add_argument('--eval_data', type=str, default='ETTh1')
+parser.add_argument('--eval_data', type=str, default='ETTh1') # Dataset used for evaluation.
 
  
 
-parser.add_argument('--use_token', type=int, default=0)
+parser.add_argument('--use_token', type=int, default=0) # If use prompt token's representation as the forecasting's information
 
-parser.add_argument('--electri_multiplier', type=int, default=1)
+parser.add_argument('--electri_multiplier', type=int, default=1) # Multiplier for electric data scaling.
 
-parser.add_argument('--traffic_multiplier', type=int, default=1)
+parser.add_argument('--traffic_multiplier', type=int, default=1) # Multiplier for traffic data scaling.
 
-parser.add_argument('--embed', type=str, default='timeF')
+parser.add_argument('--embed', type=str, default='timeF') # Type of embedding used (e.g., timeF for time-frequency embeddings).
 
 #args = parser.parse_args([])
 args = parser.parse_args()
