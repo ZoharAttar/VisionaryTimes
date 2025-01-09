@@ -156,7 +156,7 @@ parser.add_argument('--model_id', type=str, default='tempo_etth1_multi-debug')
 
 parser.add_argument('--checkpoints', type=str, default='checkpoints/')
 
-parser.add_argument('--task_name', type=str, default='long_term_forecast')
+parser.add_argument('--task_name', type=str, default='long_term_forecast') # new comment bla baldsfj
 
  
 
