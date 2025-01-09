@@ -13,14 +13,14 @@
 # export CUDA_VISIBLE_DEVICES=2
 
 seq_len=336
-model=TEMPO #TEMPO #PatchTST #_multi
+model=TEMPO #TEMPO #PatchTST 
 electri_multiplier=1
 traffic_multiplier=1
 
 
 for percent in 100 
 do
-for pred_len in  192 
+for pred_len in  96  
 do
 for tmax in 20
 do
@@ -38,22 +38,24 @@ mkdir logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$eq
 echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
 
+# python test_multi_6domain_release.py \
 
 python train_TEMPO.py \
-    --datasets ETTm1,ETTh1,ETTm2,electricity,traffic,weather \
-    --target_data ETTh2 \
+    --datasets ETTh1,ETTh2,ETTm2,electricity,traffic,weather \
+    --target_data ETTm1 \
     --config_path ./configs/multiple_datasets.yml \
-    --stl_weight 0.001 \
+    --stl_weight 0.01 \
     --equal $equal \
+    --e_layers 2 \
     --checkpoint ./lora_revin_6domain_checkpoints'_'$prompt/ \
-    --model_id ETTh2_TEMPO'_'$gpt_layer'_'prompt_learn'_'$seq_len'_'$pred_len'_'$percent \
+    --model_id ettm1_TEMPO'_'$gpt_layer'_'prompt_learn'_'$seq_len'_'$pred_len'_'$percent \
     --electri_multiplier $electri_multiplier \
     --traffic_multiplier $traffic_multiplier \
     --seq_len $seq_len \
     --label_len 168 \
     --pred_len $pred_len \
     --prompt $prompt\
-    --batch_size 256 \
+    --batch_size 128 \
     --learning_rate $lr \
     --train_epochs 10 \
     --decay_fac 0.5 \
@@ -70,7 +72,7 @@ python train_TEMPO.py \
     --model $model \
     --tmax $tmax \
     --cos 1 \
-    --is_gpt 1 #>> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
+    --is_gpt 1 >> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
 
 done
