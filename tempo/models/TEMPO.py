@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
-
 from transformers.models.gpt2.modeling_gpt2 import GPT2Model
 from transformers import BertTokenizer, BertModel
 from einops import rearrange
@@ -16,6 +15,10 @@ import os
 import warnings
 from omegaconf import OmegaConf
 import torch.nn.functional as F
+import clip
+from PIL import Image
+import matplotlib.pyplot as plt
+from io import BytesIO
 
 criterion = nn.MSELoss()
 
@@ -31,7 +34,6 @@ class ComplexLinear(nn.Module):
         out_real = self.fc_real(x_real) - self.fc_imag(x_imag)
         out_imag = self.fc_real(x_imag) + self.fc_imag(x_real)
         return torch.complex(out_real, out_imag)
-
 
 def print_trainable_parameters(model):
     trainable_params = 0
@@ -91,12 +93,23 @@ class TEMPO(nn.Module):
         self.pretrain = configs.pretrain
         self.stride = configs.stride
         self.patch_num = (configs.seq_len - self.patch_size) // self.stride + 1
-        self.mul_season = MultiFourier([2], [24*4]) #, [ 24, 24*4])
+        self.mul_season = MultiFourier([2], [24*4]) #, [24, 24*4])
         self.seq_len = configs.seq_len
         self.padding_patch_layer = nn.ReplicationPad1d((0, self.stride)) 
         self.patch_num += 1
         # self.mlp = configs.mlp
         self.device = device
+
+        ############--adding vision support--#################    
+        self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
+        self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+        self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+        self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+
+        # self.d_vis_layer_trend = nn.Linear(configs.d_model, configs.d_model)
+        # self.d_vis_layer_season = nn.Linear(configs.d_model, configs.d_model)
+        # self.d_vis_layer_noise = nn.Linear(configs.d_model, configs.d_model)
+        ############--adding vision support--#################    
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)
         self.map_season  = nn.Sequential(
@@ -125,13 +138,12 @@ class TEMPO(nn.Module):
             self.gpt2_trend.h = self.gpt2_trend.h[:configs.gpt_layers]
            
             self.prompt = configs.prompt
-            # 
+            
             # self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
             self.tokenizer = GPT2Tokenizer.from_pretrained("openai-community/gpt2")
             self.gpt2_trend_token = self.tokenizer(text="Predict the future time step given the trend", return_tensors="pt").to(device)
             self.gpt2_season_token = self.tokenizer(text="Predict the future time step given the season", return_tensors="pt").to(device)
             self.gpt2_residual_token = self.tokenizer(text="Predict the future time step given the residual", return_tensors="pt").to(device)
-
 
             self.token_len = len(self.gpt2_trend_token['input_ids'][0])
 
@@ -166,7 +178,7 @@ class TEMPO(nn.Module):
                 self.prompt_record_residual = {}
                 self.diversify = True
 
-
+        # projection layer which transform from patch size to d (d is model size)
         self.in_layer_trend = nn.Linear(configs.patch_size, configs.d_model)
         self.in_layer_season = nn.Linear(configs.patch_size, configs.d_model)
         self.in_layer_noise = nn.Linear(configs.patch_size, configs.d_model)
@@ -188,7 +200,6 @@ class TEMPO(nn.Module):
                 # self.pred_len = configs.pred_len
                 # self.seq_len = configs.seq_len
 
-
             self.prompt_layer_trend = nn.Linear(configs.d_model, configs.d_model)
             self.prompt_layer_season = nn.Linear(configs.d_model, configs.d_model)
             self.prompt_layer_noise = nn.Linear(configs.d_model, configs.d_model)
@@ -202,7 +213,6 @@ class TEMPO(nn.Module):
             self.out_layer_noise = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
 
 
-        
         if configs.freeze and configs.pretrain:
             for i, (name, param) in enumerate(self.gpt2_trend.named_parameters()):
                 if 'ln' in name or 'wpe' in name:
@@ -275,12 +285,10 @@ class TEMPO(nn.Module):
             cache_dir=cache_dir
         )
 
-        
         # Load the configuration file
         if cfg is None:
             cfg = OmegaConf.load(config_path)
 
-        
         # Initialize the model
         model = cls(cfg, device)
         
@@ -311,7 +319,6 @@ class TEMPO(nn.Module):
             }
         
 
-
     def l2_normalize(self, x, dim=None, epsilon=1e-12):
         """Normalizes a given vector or matrix."""
         square_sum = torch.sum(x ** 2, dim=dim, keepdim=True)
@@ -319,37 +326,58 @@ class TEMPO(nn.Module):
         return x * x_inv_norm
 
     def select_prompt(self, summary, prompt_mask=None):
+        # Build a matrix by stacking prompts keys from the dictionary
         prompt_key_matrix = torch.stack(tuple([self.prompt_key_dict[i] for i in self.prompt_key_dict.keys()]))
+        
+        # Normalize the prompt key matrix for similarity calculation (L2 normalization along feature dimension)
         prompt_norm = self.l2_normalize(prompt_key_matrix, dim=1) # Pool_size, C
+        
+        # Reshape the input summary tensor for processing
         summary_reshaped = summary.view(-1, self.patch_num)
+        # Map the reshaped summary to the space defined by `summary_map`
         summary_mapped = self.summary_map(summary_reshaped)
+        # Reshape the summary to match the expected dimensions for further operations
         summary = summary_mapped.view(-1, 768)
+        # Normalize the reshaped summary embedding (L2 normalization along feature dimension)
         summary_embed_norm = self.l2_normalize(summary, dim=1)
+        
+        # Calculate the similarity between the normalized summary and prompt keys (via matrix multiplication)
         similarity = torch.matmul(summary_embed_norm, prompt_norm.t())
+        
+        # If a prompt mask is provided, use it, otherwise select top-k most similar prompts
         if not prompt_mask==None:
             idx = prompt_mask
         else:
+            # Use `torch.topk` to find the top-k highest similarities along the given dimension (dim=1)
             topk_sim, idx = torch.topk(similarity, k=self.top_k, dim=1)
+        
+        # If no prompt mask was provided, calculate and update the occurrence of selected prompts in `prompt_record`
         if prompt_mask==None:
+            # Flatten the selected index and count occurrences of each prompt index
             count_of_keys = torch.bincount(torch.flatten(idx), minlength=15)
             for i in range(len(count_of_keys)):
                 self.prompt_record[f"id_{i}"] += count_of_keys[i].item()
 
-
+        # Stack the values of selected prompts using their indices and remove any singleton dimensions
         prompt_value_matrix = torch.stack(tuple([self.prompt_value_dict[i] for i in self.prompt_value_dict.keys()]))
-        batched_prompt_raw = prompt_value_matrix[idx].squeeze(1)
+        batched_prompt_raw = prompt_value_matrix[idx].squeeze(1) # Shape: [Batch_size, Top_k, Length, C]
+        
+        # Reshape batched prompt into the desired dimensions: [batch_size, top_k * length, c]
         batch_size, top_k, length, c = batched_prompt_raw.shape # [16, 3, 5, 768]
         batched_prompt = batched_prompt_raw.reshape(batch_size, top_k * length, c) 
-       
+        # Extract the normalized prompt keys corresponding to the selected indices
         batched_key_norm = prompt_norm[idx]
+        # Ensure summary embedding has the appropriate shape for element-wise multiplication
         summary_embed_norm = summary_embed_norm.unsqueeze(1)
+        # Compute element-wise similarity between summary and selected prompts
         sim = batched_key_norm * summary_embed_norm
+        # Calculate the reduced similarity score by averaging across the batch
         reduce_sim = torch.sum(sim) / summary.shape[0]
-
         # Return the sorted tuple of selected prompts along with batched_prompt and reduce_sim
         selected_prompts = [tuple(sorted(row)) for row in idx.tolist()]
         # print("reduce_sim: ", reduce_sim)
 
+        # Return the selected prompts, the computed reduced similarity, and the batched prompts
         return batched_prompt, reduce_sim, selected_prompts
 
 
@@ -367,35 +395,46 @@ class TEMPO(nn.Module):
         x = self.padding_patch_layer(x) # 4, 1, 420
         x = x.unfold(dimension=-1, size=self.patch_size, step=self.stride) #4,1, 64, 16
         x = rearrange(x, 'b m n p -> (b m) n p') # 4, 64, 16
-
         return x
     
     def get_emb(self, x, tokens=None, type = 'Trend'):
+    # If no tokens are provided, process the input using the model's embeddings
         if tokens is None:
             if type == 'Trend':
+            # Pass the input x through the GPT-2 model for trend type
                 x = self.gpt2_trend(inputs_embeds =x).last_hidden_state
+            # Pass the input x through the GPT-2 model for season type
             elif type == 'Season':
                 x = self.gpt2_trend(inputs_embeds =x).last_hidden_state
+            # Pass the input x through the GPT-2 model for residual type
             elif type == 'Residual':
                 x = self.gpt2_trend(inputs_embeds =x).last_hidden_state
-            return x
+            return x  # Return the processed tensor
+        
+        # When tokens are provided, process them according to the type (trend/season/residual)
         else:
-            [a,b,c] = x.shape
+            #The variable x have the shape [batch_size, sequence_length, feature_dim], which is unpacked into a, b, c.
+            [a,b,c] = x.shape 
           
-            
             if type == 'Trend': 
                 if self.pool:
+                    # If pooling is enabled, select prompt and calculate similarity
                     prompt_x, reduce_sim, selected_prompts_trend = self.select_prompt(x, prompt_mask=None)
                     for selected_prompt_trend in selected_prompts_trend:
+                        # Record the occurrence of selected prompt
                         self.prompt_record_trend[selected_prompt_trend] = self.prompt_record_trend.get(selected_prompt_trend, 0) + 1
                     selected_prompts = selected_prompts_trend
                 else:
-                    prompt_x = self.gpt2_trend.wte(tokens)
+                    # If no pooling, get the word token embeddings for the provided tokens
+                    prompt_x = self.gpt2_trend.wte(tokens) #wte ("word token embeddings") is func of GPT-2 (part of the pre-trained transformer model)
+                    #wte represents a layer that maps discrete token indices into vector embeddings.      
+                    
                     prompt_x = prompt_x.repeat(a,1,1)
+                    # Pass the embeddings through a transformation layer for 'Trend'
                     prompt_x = self.prompt_layer_trend(prompt_x)
+                # Concatenate patch and prompt embeddings - Concatenate the prompt embeddings with the original x tensor along the sequence dimension    
                 x = torch.cat((prompt_x, x), dim=1)
                 
-
             elif type == 'Season':
                 if self.pool:
                     prompt_x, reduce_sim, selected_prompts_season = self.select_prompt(x, prompt_mask=None)
@@ -406,7 +445,7 @@ class TEMPO(nn.Module):
                     prompt_x = self.gpt2_trend.wte(tokens)
                     prompt_x = prompt_x.repeat(a,1,1)
                     prompt_x = self.prompt_layer_season(prompt_x)
-                
+                # Concatenate the prompt embeddings with the original x tensor along the sequence dimension
                 x = torch.cat((prompt_x, x), dim=1)
                 # x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state
                 
@@ -421,40 +460,82 @@ class TEMPO(nn.Module):
                     prompt_x = prompt_x.repeat(a,1,1)
                     prompt_x = self.prompt_layer_noise(prompt_x)
                 # prompt_x, reduce_sim_trend = self.select_prompt(x, prompt_mask=None)
-                
+                # Concatenate the prompt embeddings with the original x tensor along the sequence dimension
                 x = torch.cat((prompt_x, x), dim=1)
-                
+
+            # Return the processed tensor, with potential reduction in similarity and selected prompts for pooling    
             if self.pool:
                 return x, reduce_sim, selected_prompts
             else:
                 return x
+            
+    def create_image(self, x_local):
+    
+        images = []
 
+        for i in range(x_local.shape[0]):
+            # Create a plot
+            fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
+            ax.plot(x_local[i].squeeze().cpu().numpy(), label=f"Data Plot {i+1}")
+
+            buf = BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            image = Image.open(buf).convert("RGB")
+            buf.close()
+            plt.close(fig)  # Close the plot to free resources
+
+            # Preprocess the image using the vision encoder's preprocess function
+            image_tensor = self.vision_encoder_preprocess(image).to(self.device)
+
+        images.append(image_tensor)
+        ans = torch.stack(images)
+        return ans
+        
+    def vision_embed(self, x_local, image, type = 'Trend'):
+        # vis_layer_trend
+        [a,b,c] = x_local.shape
+        if type == 'Trend': 
+            with torch.no_grad():
+                image_embed_vec = self.vision_encoder.encode_image(image)
+            image_embed_vec = self.vis_layer_trend(image_embed_vec)
+            image_embed_vec = image_embed_vec.repeat(a,1,1)
+            # image_embed_vec = self.d_vis_layer_trend(image_embed_vec)
+            x_local = torch.cat((image_embed_vec, x_local), dim=1)
+        
+        elif type == 'Season': 
+            with torch.no_grad():
+                image_embed_vec = self.vision_encoder.encode_image(image)
+            image_embed_vec = self.vis_layer_season(image_embed_vec)
+            image_embed_vec = image_embed_vec.repeat(a,1,1)
+            # image_embed_vec = self.d_vis_layer_season(image_embed_vec)
+            x_local = torch.cat((image_embed_vec, x_local), dim=1)
+            
+        elif type == 'Residual': 
+            with torch.no_grad():
+                image_embed_vec = self.vision_encoder.encode_image(image)
+            image_embed_vec = self.vis_layer_noise(image_embed_vec)
+            image_embed_vec = image_embed_vec.repeat(a,1,1)
+            # image_embed_vec = self.d_vis_layer_noise(image_embed_vec)
+            x_local = torch.cat((image_embed_vec, x_local), dim=1)
+        
+        return x_local
 
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
         B, L, M = x.shape # 4, 512, 1
-
-       
         x = self.rev_in_trend(x, 'norm')
-
         original_x = x
-        
         # Moving average for trend
         trend_local = self.moving_avg(x)
-        
         # Map trend
         trend_local = self.map_trend(trend_local.squeeze(2)).unsqueeze(2)
-        
         # Calculate season
         season_local = x - trend_local
-        
         # Map season
         season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
-        
         # Calculate noise
         noise_local = x - trend_local - season_local
         
-        
-
         if trend is not None:
             trend, means_trend, stdev_trend = self.get_norm(trend)
             season, means_season, stdev_season = self.get_norm(season)
@@ -462,7 +543,6 @@ class TEMPO(nn.Module):
             trend_local_l = criterion(trend, trend_local)
             season_local_l = criterion(season, season_local)
             noise_local_l = criterion(noise, noise_local)
-            
             loss_local = trend_local_l + season_local_l + noise_local_l 
             #import ipdb; ipdb.set_trace()
             if test:
@@ -470,20 +550,26 @@ class TEMPO(nn.Module):
                 print("Season local loss", torch.mean(season_local_l))
                 print("noise local loss", torch.mean(noise_local_l))
 
-
         trend = self.get_patch(trend_local)
         season = self.get_patch(season_local)
         noise = self.get_patch(noise_local)
+        trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, patch dim, number of patches]
 
-    
-        trend = self.in_layer_trend(trend) # 4, 64, 768
+        # creating plot image of each component
+        trend_image = self.create_image(trend_local)
+        season_image = self.create_image(season_local)
+        noise_image = self.create_image(noise_local)
+
         if self.is_gpt and self.prompt == 1:
             if self.pool:
                 trend, reduce_sim_trend, trend_selected_prompts = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
             else:
+                # trend is a concatination of the prompt embed (prompt_x) and the patch embed (x)
                 trend = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
+                trend = self.vision_embed(trend, trend_image, 'Trend')
         else:
             trend = self.get_emb(trend)
+            trend = self.vision_embed(trend, trend_image, 'Trend')
 
         season = self.in_layer_season(season) # 4, 64, 768
         if self.is_gpt and self.prompt == 1:
@@ -491,8 +577,10 @@ class TEMPO(nn.Module):
                 season, reduce_sim_season, season_selected_prompts = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
             else:
                 season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
+                season = self.vision_embed(season, season_image, 'season')
         else:
             season = self.get_emb(season)
+            season = self.vision_embed(season, season_image, 'season')
 
         noise = self.in_layer_noise(noise)
         if self.is_gpt and self.prompt == 1:
@@ -500,14 +588,15 @@ class TEMPO(nn.Module):
                 noise, reduce_sim_noise, noise_selected_prompts = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
             else:
                 noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
+                noise = self.vision_embed(noise, noise_image, 'noise')
         else:
             noise = self.get_emb(noise)
+            noise = self.vision_embed(noise, noise_image, 'noise')
 
         # print(noise_selected_prompts)
 
         # self.store_tensors_in_dict(original_x, trend_local, season_local, noise_local, trend_selected_prompts, season_selected_prompts, noise_selected_prompts)
         
-
         x_all = torch.cat((trend, season, noise), dim=1)
 
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
