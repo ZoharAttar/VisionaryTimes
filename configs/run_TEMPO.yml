@@ -47,3 +47,4 @@ electri_multiplier: 1
 traffic_multiplier: 1
 embed: timeF
 percent: 100
+vision: true
