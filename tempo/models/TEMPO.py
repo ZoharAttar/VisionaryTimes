@@ -99,12 +99,14 @@ class TEMPO(nn.Module):
         self.patch_num += 1
         # self.mlp = configs.mlp
         self.device = device
+        self.vision = configs.vision
 
         ############--adding vision support--#################    
-        self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
-        self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-        self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-        self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+        if self.vision:
+            self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
+            self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+            self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+            self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
 
         # self.d_vis_layer_trend = nn.Linear(configs.d_model, configs.d_model)
         # self.d_vis_layer_season = nn.Linear(configs.d_model, configs.d_model)
@@ -555,10 +557,11 @@ class TEMPO(nn.Module):
         noise = self.get_patch(noise_local)
         trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, patch dim, number of patches]
 
-        # creating plot image of each component
-        trend_image = self.create_image(trend_local)
-        season_image = self.create_image(season_local)
-        noise_image = self.create_image(noise_local)
+        if self.vision:
+            # creating plot image of each component
+            trend_image = self.create_image(trend_local)
+            season_image = self.create_image(season_local)
+            noise_image = self.create_image(noise_local)
 
         if self.is_gpt and self.prompt == 1:
             if self.pool:
@@ -566,10 +569,12 @@ class TEMPO(nn.Module):
             else:
                 # trend is a concatination of the prompt embed (prompt_x) and the patch embed (x)
                 trend = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
-                trend = self.vision_embed(trend, trend_image, 'Trend')
+                if self.vision:
+                    trend = self.vision_embed(trend, trend_image, 'Trend')
         else:
             trend = self.get_emb(trend)
-            trend = self.vision_embed(trend, trend_image, 'Trend')
+            if self.vision:
+                trend = self.vision_embed(trend, trend_image, 'Trend')
 
         season = self.in_layer_season(season) # 4, 64, 768
         if self.is_gpt and self.prompt == 1:
@@ -577,10 +582,12 @@ class TEMPO(nn.Module):
                 season, reduce_sim_season, season_selected_prompts = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
             else:
                 season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
-                season = self.vision_embed(season, season_image, 'season')
+                if self.vision:
+                    season = self.vision_embed(season, season_image, 'season')
         else:
             season = self.get_emb(season)
-            season = self.vision_embed(season, season_image, 'season')
+            if self.vision:
+                season = self.vision_embed(season, season_image, 'season')
 
         noise = self.in_layer_noise(noise)
         if self.is_gpt and self.prompt == 1:
@@ -588,10 +595,12 @@ class TEMPO(nn.Module):
                 noise, reduce_sim_noise, noise_selected_prompts = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
             else:
                 noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
-                noise = self.vision_embed(noise, noise_image, 'noise')
+                if self.vision:
+                    noise = self.vision_embed(noise, noise_image, 'noise')
         else:
             noise = self.get_emb(noise)
-            noise = self.vision_embed(noise, noise_image, 'noise')
+            if self.vision:
+                noise = self.vision_embed(noise, noise_image, 'noise')
 
         # print(noise_selected_prompts)
 
