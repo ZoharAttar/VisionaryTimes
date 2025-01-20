@@ -396,7 +396,7 @@ class TEMPO(nn.Module):
         x = rearrange(x, 'b l m -> b m l')
         x = self.padding_patch_layer(x) # 4, 1, 420
         x = x.unfold(dimension=-1, size=self.patch_size, step=self.stride) #4,1, 64, 16
-        x = rearrange(x, 'b m n p -> (b m) n p') # 4, 64, 16
+        x = rearrange(x, 'b m n p -> (b m) n p') # 4, 64, 16 [batch_size, number of patches, patch_size]
         return x
     
     def get_emb(self, x, tokens=None, type = 'Trend'):
@@ -478,7 +478,7 @@ class TEMPO(nn.Module):
         for i in range(x_local.shape[0]):
             # Create a plot
             fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
-            ax.plot(x_local[i].squeeze().cpu().numpy(), label=f"Data Plot {i+1}")
+            ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {i+1}")
 
             buf = BytesIO()
             plt.savefig(buf, format='png')
@@ -552,10 +552,11 @@ class TEMPO(nn.Module):
                 print("Season local loss", torch.mean(season_local_l))
                 print("noise local loss", torch.mean(noise_local_l))
 
-        trend = self.get_patch(trend_local)
+        trend = self.get_patch(trend_local) # 4, 64, 16
         season = self.get_patch(season_local)
         noise = self.get_patch(noise_local)
-        trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, patch dim, number of patches]
+        # in_layer_trend: patch_size ---> d_model
+        trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, number of patches, patch_size ---> d_model]
 
         if self.vision:
             # creating plot image of each component
