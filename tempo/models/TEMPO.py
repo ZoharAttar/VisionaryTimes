@@ -210,7 +210,7 @@ class TEMPO(nn.Module):
                 layer.to(device=device)
                 layer.train()
         else:
-            self.out_layer_trend = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
+            self.out_layer_trend = nn.Linear(configs.d_model * self.patch_num+1, configs.pred_len)
             self.out_layer_season = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
             self.out_layer_noise = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
 
@@ -490,7 +490,7 @@ class TEMPO(nn.Module):
             # Preprocess the image using the vision encoder's preprocess function
             image_tensor = self.vision_encoder_preprocess(image).to(self.device)
 
-        images.append(image_tensor)
+            images.append(image_tensor)
         ans = torch.stack(images)
         return ans
         
@@ -625,18 +625,18 @@ class TEMPO(nn.Module):
             season  = x[:, self.token_len+self.patch_num+1:2*self.token_len+2*self.patch_num+1, :]  
             noise = x[:, 2*self.token_len+2*self.patch_num+1:, :]
             if self.use_token == 0:
-                trend = trend[:, self.token_len:, :]
-                season = season[:, self.token_len:, :]
-                noise = noise[:, self.token_len:, :]    
+                trend = trend[:, self.token_len+1:, :]
+                season = season[:, self.token_len+1:, :]
+                noise = noise[:, self.token_len+1:, :]    
         else:
             trend  = x[:, :self.patch_num, :]  
             season  = x[:, self.patch_num:2*self.patch_num, :]  
             noise = x[:, 2*self.patch_num:, :] 
             
-        
+        print("!!!!!!!!!!!!!!!!!!!trend shape:",trend.shape)
         trend = self.out_layer_trend(trend.reshape(B*M, -1)) # 4, 96
         trend = rearrange(trend, '(b m) l -> b l m', b=B) # 4, 96, 1
-        
+        print("!!!!!!!!!!!!!!!!!!!season shape:",trend.shape)
         season = self.out_layer_season(season.reshape(B*M, -1)) # 4, 96
         # print(season.shape)
         season = rearrange(season, '(b m) l -> b l m', b=B) # 4, 96, 1
