@@ -573,8 +573,10 @@ class TEMPO(nn.Module):
             else:
                 # trend is a concatination of the prompt embed (prompt_x) and the patch embed (x)
                 trend = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
+                print("!!!!!!!!!!!!!!!!!!!after get embed:",trend.shape)
                 if self.vision:
                     trend = self.vision_embed(trend, trend_image, 'Trend')
+                    print("!!!!!!!!!!!!!!!!!!!after vision embed:",trend.shape)
         else:
             trend = self.get_emb(trend)
             if self.vision:
@@ -586,12 +588,14 @@ class TEMPO(nn.Module):
                 season, reduce_sim_season, season_selected_prompts = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
             else:
                 season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
+                print("!!!!!!!!!!!!!!!!!!!after get embed:",season.shape)
                 if self.vision:
-                    season = self.vision_embed(season, season_image, 'season')
+                    season = self.vision_embed(season, season_image, 'Season')
+                    print("!!!!!!!!!!!!!!!!!!!after vision embed:",season.shape)
         else:
             season = self.get_emb(season)
             if self.vision:
-                season = self.vision_embed(season, season_image, 'season')
+                season = self.vision_embed(season, season_image, 'Season')
 
         noise = self.in_layer_noise(noise)
         if self.is_gpt and self.prompt == 1:
@@ -599,12 +603,14 @@ class TEMPO(nn.Module):
                 noise, reduce_sim_noise, noise_selected_prompts = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
             else:
                 noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
+                print("!!!!!!!!!!!!!!!!!!!after get embed:",noise.shape)
                 if self.vision:
-                    noise = self.vision_embed(noise, noise_image, 'noise')
+                    noise = self.vision_embed(noise, noise_image, 'Residual')
+                    print("!!!!!!!!!!!!!!!!!!!after vision embed:",noise.shape)
         else:
             noise = self.get_emb(noise)
             if self.vision:
-                noise = self.vision_embed(noise, noise_image, 'noise')
+                noise = self.vision_embed(noise, noise_image, 'Residual')
 
         # print(noise_selected_prompts)
 
@@ -615,9 +621,9 @@ class TEMPO(nn.Module):
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
         
         if self.prompt == 1:
-            trend  = x[:, :self.token_len+self.patch_num, :]  
-            season  = x[:, self.token_len+self.patch_num:2*self.token_len+2*self.patch_num, :]  
-            noise = x[:, 2*self.token_len+2*self.patch_num:, :]
+            trend  = x[:, :self.token_len+self.patch_num+1, :]  
+            season  = x[:, self.token_len+self.patch_num+1:2*self.token_len+2*self.patch_num+1, :]  
+            noise = x[:, 2*self.token_len+2*self.patch_num+1:, :]
             if self.use_token == 0:
                 trend = trend[:, self.token_len:, :]
                 season = season[:, self.token_len:, :]
