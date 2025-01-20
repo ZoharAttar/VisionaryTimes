@@ -500,6 +500,7 @@ class TEMPO(nn.Module):
         if type == 'Trend': 
             with torch.no_grad():
                 image_embed_vec = self.vision_encoder.encode_image(image)
+            image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
             image_embed_vec = self.vis_layer_trend(image_embed_vec)
             image_embed_vec = image_embed_vec.repeat(a,1,1)
             # image_embed_vec = self.d_vis_layer_trend(image_embed_vec)
@@ -508,6 +509,7 @@ class TEMPO(nn.Module):
         elif type == 'Season': 
             with torch.no_grad():
                 image_embed_vec = self.vision_encoder.encode_image(image)
+            image_embed_vec = image_embed_vec.to(self.vis_layer_season.weight.dtype)
             image_embed_vec = self.vis_layer_season(image_embed_vec)
             image_embed_vec = image_embed_vec.repeat(a,1,1)
             # image_embed_vec = self.d_vis_layer_season(image_embed_vec)
@@ -516,6 +518,7 @@ class TEMPO(nn.Module):
         elif type == 'Residual': 
             with torch.no_grad():
                 image_embed_vec = self.vision_encoder.encode_image(image)
+            image_embed_vec = image_embed_vec.to(self.vis_layer_noise.weight.dtype)
             image_embed_vec = self.vis_layer_noise(image_embed_vec)
             image_embed_vec = image_embed_vec.repeat(a,1,1)
             # image_embed_vec = self.d_vis_layer_noise(image_embed_vec)
