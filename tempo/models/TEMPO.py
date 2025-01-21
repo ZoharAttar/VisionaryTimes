@@ -211,8 +211,8 @@ class TEMPO(nn.Module):
                 layer.train()
         else:
             self.out_layer_trend = nn.Linear(configs.d_model * self.patch_num+1, configs.pred_len)
-            self.out_layer_season = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
-            self.out_layer_noise = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
+            self.out_layer_season = nn.Linear(configs.d_model * self.patch_num+1, configs.pred_len)
+            self.out_layer_noise = nn.Linear(configs.d_model * self.patch_num+1, configs.pred_len)
 
 
         if configs.freeze and configs.pretrain:
@@ -502,16 +502,19 @@ class TEMPO(nn.Module):
                 image_embed_vec = self.vision_encoder.encode_image(image)
             image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
             image_embed_vec = self.vis_layer_trend(image_embed_vec)
-            image_embed_vec = image_embed_vec.repeat(a,1,1)
+            image_embed_vec = image_embed_vec.unsqueeze(1)
+            # image_embed_vec = image_embed_vec.repeat(a,1,1)
             # image_embed_vec = self.d_vis_layer_trend(image_embed_vec)
             x_local = torch.cat((image_embed_vec, x_local), dim=1)
+            
         
         elif type == 'Season': 
             with torch.no_grad():
                 image_embed_vec = self.vision_encoder.encode_image(image)
             image_embed_vec = image_embed_vec.to(self.vis_layer_season.weight.dtype)
             image_embed_vec = self.vis_layer_season(image_embed_vec)
-            image_embed_vec = image_embed_vec.repeat(a,1,1)
+            image_embed_vec = image_embed_vec.unsqueeze(1)
+            # image_embed_vec = image_embed_vec.repeat(a,1,1)
             # image_embed_vec = self.d_vis_layer_season(image_embed_vec)
             x_local = torch.cat((image_embed_vec, x_local), dim=1)
             
@@ -520,7 +523,8 @@ class TEMPO(nn.Module):
                 image_embed_vec = self.vision_encoder.encode_image(image)
             image_embed_vec = image_embed_vec.to(self.vis_layer_noise.weight.dtype)
             image_embed_vec = self.vis_layer_noise(image_embed_vec)
-            image_embed_vec = image_embed_vec.repeat(a,1,1)
+            image_embed_vec = image_embed_vec.unsqueeze(1)
+            # image_embed_vec = image_embed_vec.repeat(a,1,1)
             # image_embed_vec = self.d_vis_layer_noise(image_embed_vec)
             x_local = torch.cat((image_embed_vec, x_local), dim=1)
         
@@ -573,10 +577,8 @@ class TEMPO(nn.Module):
             else:
                 # trend is a concatination of the prompt embed (prompt_x) and the patch embed (x)
                 trend = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
-                print("!!!!!!!!!!!!!!!!!!!after get embed:",trend.shape)
                 if self.vision:
                     trend = self.vision_embed(trend, trend_image, 'Trend')
-                    print("!!!!!!!!!!!!!!!!!!!after vision embed:",trend.shape)
         else:
             trend = self.get_emb(trend)
             if self.vision:
@@ -588,10 +590,8 @@ class TEMPO(nn.Module):
                 season, reduce_sim_season, season_selected_prompts = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
             else:
                 season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
-                print("!!!!!!!!!!!!!!!!!!!after get embed:",season.shape)
                 if self.vision:
                     season = self.vision_embed(season, season_image, 'Season')
-                    print("!!!!!!!!!!!!!!!!!!!after vision embed:",season.shape)
         else:
             season = self.get_emb(season)
             if self.vision:
@@ -603,10 +603,8 @@ class TEMPO(nn.Module):
                 noise, reduce_sim_noise, noise_selected_prompts = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
             else:
                 noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
-                print("!!!!!!!!!!!!!!!!!!!after get embed:",noise.shape)
                 if self.vision:
                     noise = self.vision_embed(noise, noise_image, 'Residual')
-                    print("!!!!!!!!!!!!!!!!!!!after vision embed:",noise.shape)
         else:
             noise = self.get_emb(noise)
             if self.vision:
@@ -619,24 +617,23 @@ class TEMPO(nn.Module):
         x_all = torch.cat((trend, season, noise), dim=1)
 
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
+        vision_token_len = 1
         
         if self.prompt == 1:
-            trend  = x[:, :self.token_len+self.patch_num+1, :]  
-            season  = x[:, self.token_len+self.patch_num+1:2*self.token_len+2*self.patch_num+1, :]  
-            noise = x[:, 2*self.token_len+2*self.patch_num+1:, :]
+            trend  = x[:, :self.token_len+self.patch_num+vision_token_len, :]  
+            season  = x[:, self.token_len+self.patch_num+vision_token_len:2*self.token_len+2*self.patch_num+2*vision_token_len, :]  
+            noise = x[:, 2*self.token_len+2*self.patch_num+2*vision_token_len:, :]
             if self.use_token == 0:
-                trend = trend[:, self.token_len+1:, :]
-                season = season[:, self.token_len+1:, :]
-                noise = noise[:, self.token_len+1:, :]    
+                trend = trend[:, self.token_len+vision_token_len:, :]
+                season = season[:, self.token_len+vision_token_len:, :]
+                noise = noise[:, self.token_len+vision_token_len:, :]    
         else:
             trend  = x[:, :self.patch_num, :]  
             season  = x[:, self.patch_num:2*self.patch_num, :]  
             noise = x[:, 2*self.patch_num:, :] 
             
-        print("!!!!!!!!!!!!!!!!!!!trend shape:",trend.shape)
         trend = self.out_layer_trend(trend.reshape(B*M, -1)) # 4, 96
         trend = rearrange(trend, '(b m) l -> b l m', b=B) # 4, 96, 1
-        print("!!!!!!!!!!!!!!!!!!!season shape:",trend.shape)
         season = self.out_layer_season(season.reshape(B*M, -1)) # 4, 96
         # print(season.shape)
         season = rearrange(season, '(b m) l -> b l m', b=B) # 4, 96, 1
