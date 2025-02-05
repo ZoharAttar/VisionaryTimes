@@ -1,10 +1,11 @@
 # VisionaryTimes - Using LLMs for Time-Series Analysis (Our Final Reasearch Project)
 
-## Our project goal - enhance the capabilities of TEMPO (Prompt-based Generative Pre-trained Transformer for Time Series Forecasting) 
+## Our project goal: 
+**Enhancing the capabilities of TEMPO (Prompt-based Generative Pre-trained Transformer for Time Series Forecasting) by:**
 
-- **Adjust TEMPO for classification task** - We plan to achieve this by integrating multimodal inputs, such as visual data through tools like CLIP (Contrastive Language–Image Pre-training), to enhance the model’s performance in handling complex scenarios.
-- **Adjust TEMPO for classification task** - we aim to improve its accuracy and versatility while exploring its potential for handling additional tasks such as classification.
-- **Use Pre-Training techniques to enhance TEMPO performance** -  we will focus on pre-training techniques, including masking strategies, to improve the model’s ability to learn complex temporal patterns and boost its generalization potential.
+1. **Integrating multimodal inputs (Vision+Text) in TEMPO** - We plan to achieve this by integrating data through tools like CLIP (Contrastive Language–Image Pre-training), to enhance the model’s performance in handling complex scenarios.
+2. **Adjust TEMPO for classification task** - we aim to improve its accuracy and versatility while exploring its potential for handling additional tasks such as classification.
+3. **Use Pre-Training techniques to enhance TEMPO performance** - we will focus on pre-training techniques, including masking strategies, to improve the model’s ability to learn complex temporal patterns and boost its generalization potential.
 
 The official code for [["TEMPO: Prompt-based Generative Pre-trained Transformer for Time Series Forecasting (ICLR 2024)"]](https://arxiv.org/pdf/2310.04948).
 
@@ -23,6 +24,10 @@ TEMPO is one of the very first open source **Time Series Foundation Models** for
 - Concatenate to prompt and TS embedding
 
 **Train the same data as it done originaly in TEMPO, to check visual input’s effect**
+
+**We invite you to read in detail about the adjustments we have made so far, as described in the following attached document:**
+
+"VisionaryTimes - Summary of the main progress in the BGU hackathon"
 
 ## What’s Next:
 1. Try different implementations for Visual Inputs usage:
