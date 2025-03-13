@@ -1,6 +1,11 @@
 ## Intro
 This code is based on the TEMPO repositiry: https://github.com/databrickslabs/tempo
 
+## insall packeges if nedeed
+```
+pip install -r requirements.txt
+```
+
 ## Build the environment
 
 ```
@@ -18,11 +23,14 @@ pip install timeagi
 2. download the datasets from temp google drive: [[Google Drive]](https://drive.google.com/drive/folders/13Cg1KYOlzM5C7K8gK8NfC-F3EYxkM3D2?usp=sharing) 
 3. put the datasets inside the folder
 
-## Run the Model
+## Run the Model (Train the whole model)
 ```
 python train_TEMPO.py
 ```
-## TODO:
-1. understand each argument in train_TEMPO.py and the effects
-2. create a bash file per dataset (example: BGU_bash/ETTh2.sh)
-3. learn the TEMPO paper
+## Run the Model on specific satasets:
+```
+bash (specific dataset file directory)
+for example:
+bash C:\......\final project\VisionaryTimes-1\scripts\etth2.sh
+```
+
