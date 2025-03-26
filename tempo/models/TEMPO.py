@@ -530,6 +530,7 @@ class TEMPO(nn.Module):
         
         return x_local
 
+    
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
         B, L, M = x.shape # 4, 512, 1
         x = self.rev_in_trend(x, 'norm')
@@ -562,6 +563,7 @@ class TEMPO(nn.Module):
         trend = self.get_patch(trend_local) # 4, 64, 16
         season = self.get_patch(season_local)
         noise = self.get_patch(noise_local)
+
         # in_layer_trend: patch_size ---> d_model
         trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, number of patches, patch_size ---> d_model]
 
@@ -620,13 +622,22 @@ class TEMPO(nn.Module):
         vision_token_len = 1
         
         if self.prompt == 1:
-            trend  = x[:, :self.token_len+self.patch_num+vision_token_len, :]  
-            season  = x[:, self.token_len+self.patch_num+vision_token_len:2*self.token_len+2*self.patch_num+2*vision_token_len, :]  
-            noise = x[:, 2*self.token_len+2*self.patch_num+2*vision_token_len:, :]
-            if self.use_token == 0:
-                trend = trend[:, self.token_len+vision_token_len:, :]
-                season = season[:, self.token_len+vision_token_len:, :]
-                noise = noise[:, self.token_len+vision_token_len:, :]    
+            if self.vision:
+                trend  = x[:, :self.token_len+self.patch_num+vision_token_len, :]  
+                season  = x[:, self.token_len+self.patch_num+vision_token_len:2*self.token_len+2*self.patch_num+2*vision_token_len, :]  
+                noise = x[:, 2*self.token_len+2*self.patch_num+2*vision_token_len:, :]
+                if self.use_token == 0:
+                    trend = trend[:, self.token_len+vision_token_len:, :]
+                    season = season[:, self.token_len+vision_token_len:, :]
+                    noise = noise[:, self.token_len+vision_token_len:, :]
+            else:
+                trend  = x[:, :self.token_len+self.patch_num, :]  
+                season  = x[:, self.token_len+self.patch_num:2*self.token_len+2*self.patch_num, :]  
+                noise = x[:, 2*self.token_len+2*self.patch_num:, :]
+                if self.use_token == 0:
+                    trend = trend[:, self.token_len:, :]
+                    season = season[:, self.token_len:, :]
+                    noise = noise[:, self.token_len:, :]    
         else:
             trend  = x[:, :self.patch_num, :]  
             season  = x[:, self.patch_num:2*self.patch_num, :]  
@@ -640,6 +651,7 @@ class TEMPO(nn.Module):
         # season = season * stdev_season + means_season
 
         
+
         noise = self.out_layer_noise(noise.reshape(B*M, -1)) # 4, 96
         noise = rearrange(noise, '(b m) l -> b l m', b=B)
         # noise = noise * stdev_noise + means_noise
@@ -670,7 +682,6 @@ class TEMPO(nn.Module):
         if test:
             return outputs, None
         return outputs, loss_local
-    
 
     def predict(self, x, pred_length=96):
         """
