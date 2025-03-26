@@ -67,6 +67,9 @@ python train_TEMPO.py \
     --stride 8 \
     --gpt_layer $gpt_layer \
     --itr 3 \
+    --eval_data ETTm2 \
+    --vision 0 \
+    --vis_encoder_dim 512 \
     --model $model \
     --tmax $tmax \
     --cos 1 \
