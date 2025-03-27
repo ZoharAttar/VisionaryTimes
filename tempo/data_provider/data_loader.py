@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScalsers
 from tempo.utils.timefeatures import time_features
 from tempo.utils.tools import convert_tsf_to_dataframe
 import warnings
