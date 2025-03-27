@@ -20,7 +20,7 @@ traffic_multiplier=1
 
 for percent in 100 
 do
-for pred_len in  192 
+for pred_len in  96 336 720 
 do
 for tmax in 20
 do
