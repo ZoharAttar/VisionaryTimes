@@ -263,6 +263,20 @@ class TEMPO(nn.Module):
             # Output layers for Negative Binomial parameters
             self.mu = nn.Linear(configs.pred_len, configs.pred_len)  # Mean
             self.alpha= nn.Linear(configs.pred_len, configs.pred_len) 
+        
+          # Add task-specific parameters
+        self.task_name = configs.task_name
+        
+        # Add classification-specific components
+        if self.task_name == 'classification':
+            self.num_classes = configs.num_classes
+            # Add classification head
+            self.classification_head = nn.Sequential(
+                nn.Linear(configs.d_model, configs.d_model // 2),
+                nn.ReLU(),
+                nn.Dropout(configs.dropout),
+                nn.Linear(configs.d_model // 2, self.num_classes)
+            )
             
     @classmethod
     def load_pretrained_model(
@@ -618,6 +632,16 @@ class TEMPO(nn.Module):
         
         x_all = torch.cat((trend, season, noise), dim=1)
 
+
+        if self.task_name == 'classification':
+            # For classification, we need to process the combined features
+            # through the classification head
+            x_all = x_all.mean(dim=1)  # Global average pooling
+            outputs = self.classification_head(x_all)
+            return outputs, loss_local if trend is not None else None
+    
+
+
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
         vision_token_len = 1
         
@@ -751,6 +775,22 @@ class TEMPO(nn.Module):
                 current_input = torch.FloatTensor(new_sequence).unsqueeze(0).unsqueeze(2)
         # Trim to the desired length
         return np.array(all_predictions[:pred_length])
+    
+    def predict_class(self, x):
+        """
+        Predict class labels for classification tasks.
+        
+        Args:
+            x: Input time series data (shape: [B, L, M])
+            
+        Returns:
+            Predicted class probabilities
+        """
+        self.eval()
+        with torch.no_grad():
+            outputs, _ = self.forward(x, test=True)
+            probs = F.softmax(outputs, dim=1)
+            return probs
     
     def predict_prob(self, x, pred_length=96):
         """

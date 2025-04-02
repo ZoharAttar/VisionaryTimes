@@ -3,7 +3,7 @@ python -u run.py \
   --is_training 1 \
   --root_path ./dataset/EthanolConcentration/ \
   --model_id EthanolConcentration \
-  --model $model_name \
+  --model TEMPO \
   --data UEA \
   --e_layers 3 \
   --batch_size 16 \

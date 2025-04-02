@@ -605,3 +605,52 @@ def test_probs(model, test_data, test_loader, args, device, itr):
    
     
     return preds, trues #mse, mae
+
+def vali_classification(model, vali_data, vali_loader, criterion, args, device):
+    total_loss = []
+    preds = []
+    trues = []
+    model.eval()
+    with torch.no_grad():
+        for i, (batch_x, label, padding_mask) in enumerate(vali_loader):
+            batch_x = batch_x.float().to(device)
+            padding_mask = padding_mask.float().to(device)
+            label = label.to(device)
+
+            outputs = model(batch_x, padding_mask, None, None)
+            pred = outputs.detach().cpu()
+            loss = criterion(pred, label.long().squeeze().cpu())
+            total_loss.append(loss)
+
+            preds.append(outputs.detach())
+            trues.append(label)
+
+    total_loss = np.average(total_loss)
+
+    preds = torch.cat(preds, 0)
+    trues = torch.cat(trues, 0)
+    probs = torch.nn.functional.softmax(preds)
+    predictions = torch.argmax(probs, dim=1).cpu().numpy()
+    trues = trues.flatten().cpu().numpy()
+    accuracy = cal_accuracy(predictions, trues)
+
+    model.train()
+    return total_loss, accuracy
+
+def test_classification(model, test_data, test_loader, criterion, args, device):
+    return vali_classification(model, test_data, test_loader, criterion, args, device)
+
+def cal_accuracy(predictions, targets):
+    """
+    Calculate accuracy for classification tasks.
+    
+    Args:
+        predictions: numpy array of predicted class indices
+        targets: numpy array of true class indices
+        
+    Returns:
+        float: accuracy score between 0 and 1
+    """
+    correct = np.sum(predictions == targets)
+    total = len(targets)
+    return correct / total

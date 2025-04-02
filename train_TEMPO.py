@@ -1,5 +1,5 @@
 from tempo.data_provider.data_factory import data_provider
-from tempo.utils.tools import EarlyStopping, adjust_learning_rate, visual, vali, test
+from tempo.utils.tools import EarlyStopping, adjust_learning_rate, visual, vali, test, vali_classification, test_classification
 from torch.utils.data import Subset
 from tqdm import tqdm
 from tempo.models.PatchTST import PatchTST
@@ -65,6 +65,8 @@ def print_dataset_info(data, loader, name="Dataset"):
 def prepare_data_loaders(args, config):
     """
     Prepare train, validation and test data loaders.
+    For classification tasks, uses predefined train/test splits from UEA datasets.
+    For forecasting tasks, handles multiple datasets and equal sampling.
     
     Args:
         args: Arguments containing dataset configurations
@@ -73,56 +75,70 @@ def prepare_data_loaders(args, config):
     Returns:
         tuple: (train_data, train_loader, test_data, test_loader, val_data, val_loader)
     """
-    
-    train_datas = []
-    val_datas = []
-    min_sample_num = sys.maxsize
-    
-    # First pass to get validation data and minimum sample number
-    for dataset_name in args.datasets.split(','):
-        _update_args_from_config(args, config, dataset_name)
+    if args.task_name == 'classification':
+        # For classification tasks, we use the predefined train/test splits
+        _update_args_from_config(args, config, args.datasets)
         
-        train_data, train_loader = data_provider(args, 'train')
-        if dataset_name not in ['ETTh1', 'ETTh2', 'ILI', 'exchange', 'monash']:
-            min_sample_num = min(min_sample_num, len(train_data))
+        # Load training data
+        train_data, train_loader = data_provider(args, 'TRAIN')
+        
+        # Load test data (used for both validation and testing)
+        test_data, test_loader = data_provider(args, 'TEST')
+        
+        # For classification, we use the same test set for validation
+        val_data, val_loader = test_data, test_loader
     
-    for dataset_name in args.eval_data.split(','):  
-        _update_args_from_config(args, config, dataset_name)  
-        val_data, val_loader = data_provider(args, 'val') 
-        val_datas.append(val_data)
-
-    # Second pass to prepare training data with proper sampling
-    for dataset_name in args.datasets.split(','):
-        _update_args_from_config(args, config, dataset_name)
+    else:
+        # Existing forecasting code
+        train_datas = []
+        val_datas = []
+        min_sample_num = sys.maxsize
         
-        train_data, _ = data_provider(args, 'train')
-        
-        if dataset_name not in ['ETTh1', 'ETTh2', 'ILI', 'exchange', 'monash'] and args.equal == 1:
-            train_data = Subset(train_data, choice(len(train_data), min_sample_num))
+        # First pass to get validation data and minimum sample number
+        for dataset_name in args.datasets.split(','):
+            _update_args_from_config(args, config, dataset_name)
             
-        if args.equal == 1:
-            if dataset_name == 'electricity' and args.electri_multiplier > 1:
-                train_data = Subset(train_data, choice(len(train_data), 
-                                  int(min_sample_num * args.electri_multiplier)))
-            elif dataset_name == 'traffic' and args.traffic_multiplier > 1:
-                train_data = Subset(train_data, choice(len(train_data),
-                                  int(min_sample_num * args.traffic_multiplier)))
-                
-        train_datas.append(train_data)
-
-    # Combine datasets if multiple exist
-    if len(train_datas) > 1:
-        train_data = _combine_datasets(train_datas)
-        val_data = _combine_datasets(val_datas)
+            train_data, train_loader = data_provider(args, 'train')
+            if dataset_name not in ['ETTh1', 'ETTh2', 'ILI', 'exchange', 'monash']:
+                min_sample_num = min(min_sample_num, len(train_data))
         
-        train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, 
-                                shuffle=True, num_workers=args.num_workers)
-        val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size,
-                              shuffle=False, num_workers=args.num_workers)
-    
-    # Prepare test data
-    _update_args_from_config(args, config, args.target_data)
-    test_data, test_loader = data_provider(args, 'test')
+        for dataset_name in args.eval_data.split(','):  
+            _update_args_from_config(args, config, dataset_name)  
+            val_data, val_loader = data_provider(args, 'val') 
+            val_datas.append(val_data)
+
+        # Second pass to prepare training data with proper sampling
+        for dataset_name in args.datasets.split(','):
+            _update_args_from_config(args, config, dataset_name)
+            
+            train_data, _ = data_provider(args, 'train')
+            
+            if dataset_name not in ['ETTh1', 'ETTh2', 'ILI', 'exchange', 'monash'] and args.equal == 1:
+                train_data = Subset(train_data, choice(len(train_data), min_sample_num))
+                
+            if args.equal == 1:
+                if dataset_name == 'electricity' and args.electri_multiplier > 1:
+                    train_data = Subset(train_data, choice(len(train_data), 
+                                    int(min_sample_num * args.electri_multiplier)))
+                elif dataset_name == 'traffic' and args.traffic_multiplier > 1:
+                    train_data = Subset(train_data, choice(len(train_data),
+                                    int(min_sample_num * args.traffic_multiplier)))
+                    
+            train_datas.append(train_data)
+
+        # Combine datasets if multiple exist
+        if len(train_datas) > 1:
+            train_data = _combine_datasets(train_datas)
+            val_data = _combine_datasets(val_datas)
+            
+            train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, 
+                                    shuffle=True, num_workers=args.num_workers)
+            val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size,
+                                shuffle=False, num_workers=args.num_workers)
+        
+        # Prepare test data
+        _update_args_from_config(args, config, args.target_data)
+        test_data, test_loader = data_provider(args, 'test')
 
     print_dataset_info(train_data, train_loader, "Training Dataset")
     print_dataset_info(val_data, val_loader, "Validation Dataset")
@@ -159,7 +175,9 @@ parser.add_argument('--checkpoints', type=str, default='checkpoints/') # Directo
 
 parser.add_argument('--task_name', type=str, default='long_term_forecast') # Defines the type of task, e.g., classification/anomaly_detection/ long_term_forecast/imputation/ short_term_forecasting
 
- 
+ ## Classification Specific Arguments
+parser.add_argument('--num_classes', type=int, default=None,
+                   help='Number of classes for classification (will be determined by dataset)')
 
  
 
@@ -301,12 +319,20 @@ SEASONALITY_MAP = {
 
 
 
+# Initialize lists for metrics
+if args.task_name == 'classification':
+    accuracies = []
+else:
+    mses = []
+    maes = []
 
-mses = []
-maes = []
 for ii in range(args.itr):
-
-    setting = '{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}'.format(args.model_id, 336, args.label_len, args.pred_len,
+    if args.task_name == 'classification':
+        setting = '{}_sl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}'.format(
+            args.model_id, args.seq_len, args.d_model, args.n_heads, 
+            args.e_layers, args.gpt_layers, args.d_ff, args.embed, ii)
+    else:
+        setting = '{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}'.format(args.model_id, 336, args.label_len, args.pred_len,
                                                                     args.d_model, args.n_heads, args.e_layers, args.gpt_layers, 
                                                                     args.d_ff, args.embed, ii)
     path = os.path.join(args.checkpoints, setting)
@@ -346,15 +372,19 @@ for ii in range(args.itr):
     model_optim = torch.optim.Adam(params, lr=args.learning_rate)
     
     early_stopping = EarlyStopping(patience=args.patience, verbose=True)
-    if args.loss_func == 'mse':
-        criterion = nn.MSELoss()
-    elif args.loss_func == 'smape':
-        class SMAPE(nn.Module):
-            def __init__(self):
-                super(SMAPE, self).__init__()
-            def forward(self, pred, true):
-                return torch.mean(200 * torch.abs(pred - true) / (torch.abs(pred) + torch.abs(true) + 1e-8))
-        criterion = SMAPE()
+
+    if args.task_name == 'classification':
+        criterion = nn.CrossEntropyLoss()
+    else:
+        if args.loss_func == 'mse':
+            criterion = nn.MSELoss()
+        elif args.loss_func == 'smape':
+            class SMAPE(nn.Module):
+                def __init__(self):
+                    super(SMAPE, self).__init__()
+                def forward(self, pred, true):
+                    return torch.mean(200 * torch.abs(pred - true) / (torch.abs(pred) + torch.abs(true) + 1e-8))
+            criterion = SMAPE()
     
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=args.tmax, eta_min=1e-8)
 
@@ -363,62 +393,96 @@ for ii in range(args.itr):
         iter_count = 0
         train_loss = []
         epoch_time = time.time()
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader),total = len(train_loader)):
 
-            iter_count += 1
-            model_optim.zero_grad()
-            batch_x = batch_x.float().to(device)
+        if args.task_name == 'classification':
+            for i, (batch_x, label, padding_mask) in tqdm(enumerate(train_loader), total=len(train_loader)):
+                iter_count += 1
+                model_optim.zero_grad()
+                
+                batch_x = batch_x.float().to(device)
+                label = label.to(device)
+                padding_mask = padding_mask.float().to(device)
 
-            batch_y = batch_y.float().to(device)
-            batch_x_mark = batch_x_mark.float().to(device)
-            batch_y_mark = batch_y_mark.float().to(device)
+                outputs = model(batch_x, padding_mask, None, None)
+                loss = criterion(outputs, label.long().squeeze(-1))
+                train_loss.append(loss.item())
 
-            seq_trend = seq_trend.float().to(device)
-            seq_seasonal = seq_seasonal.float().to(device)
-            seq_resid = seq_resid.float().to(device)
+                if (i + 1) % 1000 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
+                
+                loss.backward()
+                model_optim.step()
+        else:
+            # Existing forecasting training loop
+            for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader),total = len(train_loader)):
 
-            # print(seq_seasonal.shape)
-            if args.model == 'TEMPO' or 'multi' in args.model:
-                outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)
-            elif 'former' in args.model:
-                dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
-                dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
-                outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-            else:
-                outputs = model(batch_x, ii)
-            outputs = outputs[:, -args.pred_len:, :]
-            batch_y = batch_y[:, -args.pred_len:, :].to(device)
-            loss = criterion(outputs, batch_y) 
-            if args.model == 'GPT4TS_multi' or args.model == 'TEMPO_t5':
-                if not args.no_stl_loss:
-                    loss += args.stl_weight*loss_local
-            train_loss.append(loss.item())
+                iter_count += 1
+                model_optim.zero_grad()
+                batch_x = batch_x.float().to(device)
 
-            if (i + 1) % 1000 == 0:
-                print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                speed = (time.time() - time_now) / iter_count
-                left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
-                print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                iter_count = 0
-                time_now = time.time()
-            loss.backward()
-            model_optim.step()
+                batch_y = batch_y.float().to(device)
+                batch_x_mark = batch_x_mark.float().to(device)
+                batch_y_mark = batch_y_mark.float().to(device)
+
+                seq_trend = seq_trend.float().to(device)
+                seq_seasonal = seq_seasonal.float().to(device)
+                seq_resid = seq_resid.float().to(device)
+
+                # print(seq_seasonal.shape)
+                if args.model == 'TEMPO' or 'multi' in args.model:
+                    outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)
+                elif 'former' in args.model:
+                    dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
+                    dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
+                    outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                else:
+                    outputs = model(batch_x, ii)
+                outputs = outputs[:, -args.pred_len:, :]
+                batch_y = batch_y[:, -args.pred_len:, :].to(device)
+                loss = criterion(outputs, batch_y) 
+                if args.model == 'GPT4TS_multi' or args.model == 'TEMPO_t5':
+                    if not args.no_stl_loss:
+                        loss += args.stl_weight*loss_local
+                train_loss.append(loss.item())
+
+                if (i + 1) % 1000 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
+                loss.backward()
+                model_optim.step()
         
         
         print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
 
         train_loss = np.average(train_loss)
-        vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
+
+        if args.task_name == 'classification':
+            vali_loss, val_accuracy = vali_classification(model, vali_data, vali_loader, criterion, args, device)
+            print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Vali Acc: {4:.3f}".format(
+                epoch + 1, train_steps, train_loss, vali_loss, val_accuracy))
+            early_stopping(-val_accuracy, model, path)  # Use negative accuracy for early stopping
+        else:
+            vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
        
-        print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
-            epoch + 1, train_steps, train_loss, vali_loss))
+            print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(
+                epoch + 1, train_steps, train_loss, vali_loss))
+            early_stopping(vali_loss, model, path)
 
         if args.cos:
             scheduler.step()
             print("lr = {:.10f}".format(model_optim.param_groups[0]['lr']))
         else:
             adjust_learning_rate(model_optim, epoch + 1, args)
-        early_stopping(vali_loss, model, path)
+
         if early_stopping.early_stop:
             print("Early stopping")
             break
@@ -427,14 +491,25 @@ for ii in range(args.itr):
     best_model_path = path + '/' + 'checkpoint.pth'
     model.load_state_dict(torch.load(best_model_path), strict=False)
     print("------------------------------------")
-    mse, mae = test(model, test_data, test_loader, args, device, ii)
+
+    if args.task_name == 'classification':
+        test_loss, test_accuracy = test_classification(model, test_data, test_loader, criterion, args, device)
+        print('Test Loss: {:.4f}, Test Accuracy: {:.4f}'.format(test_loss, test_accuracy))
+        accuracies.append(test_accuracy)
+    else:
+        mse, mae = test(model, test_data, test_loader, args, device, ii)
+        print('test on the ' + str(args.target_data) + ' dataset: mse:' + str(mse) + ' mae:' + str(mae))
+        
+        mses.append(mse)
+        maes.append(mae)
+
     torch.cuda.empty_cache()
-    print('test on the ' + str(args.target_data) + ' dataset: mse:' + str(mse) + ' mae:' + str(mae))
-    
-    mses.append(mse)
-    maes.append(mae)
-print("mse_mean = {:.4f}, mse_std = {:.4f}".format(np.mean(mses), np.std(mses)))
-print("mae_mean = {:.4f}, mae_std = {:.4f}".format(np.mean(maes), np.std(maes)))
+
+if args.task_name == 'classification':
+    print("Accuracy mean = {:.4f}, Accuracy std = {:.4f}".format(np.mean(accuracies), np.std(accuracies)))
+else:
+    print("mse_mean = {:.4f}, mse_std = {:.4f}".format(np.mean(mses), np.std(mses)))
+    print("mae_mean = {:.4f}, mae_std = {:.4f}".format(np.mean(maes), np.std(maes)))
 
 #     mses_s.append(mse_s)
 #     maes_s.append(mae_s)

@@ -3,7 +3,7 @@ python -u train_TEMPO.py \
   --is_training 1 \
   --root_path ./dataset/SelfRegulationSCP1/ \
   --model_id SelfRegulationSCP1 \
-  --model $model_name \
+  --model TEMPO \
   --data UEA \
   --e_layers 3 \
   --batch_size 16 \
