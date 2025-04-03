@@ -110,6 +110,6 @@ datasets:
     freq: 0
     percent: 100
   FaceDetection:
-    root_path: ./datasets/FaceDetection/
+    root_path: ./dataset/FaceDetection/
     data_name: FaceDetection
     data: UEA

@@ -1,6 +1,6 @@
 from tempo.data_provider.data_loader import UEAloader, Dataset_Monash, Dataset_Custom, Dataset_Pred, Dataset_TSF, Dataset_ETT_hour, Dataset_ETT_minute
 from torch.utils.data import DataLoader
-from data_provider.uea import collate_fn
+from tempo.data_provider.uea import collate_fn
 
 data_dict = {
     'custom': Dataset_Custom,

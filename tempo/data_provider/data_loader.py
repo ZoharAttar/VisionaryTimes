@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScalsers
+from sklearn.preprocessing import StandardScaler
 from tempo.utils.timefeatures import time_features
 from tempo.utils.tools import convert_tsf_to_dataframe
 import warnings
@@ -13,9 +13,9 @@ import pickle
 from statsmodels.tsa.seasonal import STL
 import glob
 import re
-from data_provider.uea import subsample, interpolate_missing, Normalizer
+from tempo.data_provider.uea import subsample, interpolate_missing, Normalizer
 from sktime.datasets import load_from_tsfile_to_dataframe
-from utils.augmentation import run_augmentation_single
+from tempo.utils.augmentation import run_augmentation_single
 
 warnings.filterwarnings('ignore')
 

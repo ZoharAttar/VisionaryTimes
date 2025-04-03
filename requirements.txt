@@ -15,3 +15,5 @@ torchaudio==0.13.0
 peft
 huggingface_hub
 omegaconf
+sklearn.preprocessing
+sktime
