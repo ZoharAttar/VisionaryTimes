@@ -3,6 +3,7 @@ python -u train_TEMPO.py \
   --config_path ./configs/multiple_datasets.yml \
   --datasets FaceDetection\
   --num_classes 2 \
+  --pred_len 0 \
   # --is_training 1 \
   # --root_path ./dataset/FaceDetection/ \
   # --model_id FaceDetection \
