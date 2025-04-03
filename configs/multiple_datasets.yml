@@ -111,5 +111,12 @@ datasets:
     percent: 100
   FaceDetection:
     root_path: ./dataset/FaceDetection/
+    data_path: FaceDetection_TRAIN.ts
     data_name: FaceDetection
     data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100

@@ -71,6 +71,8 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
         batch_size = args.batch_size
         freq = args.freq
 
+        print("args:  ",args)
+
         data_set = Data(
             args = args,
             root_path=args.root_path,
