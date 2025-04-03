@@ -178,7 +178,9 @@ parser.add_argument('--task_name', type=str, default='long_term_forecast') # Def
  ## Classification Specific Arguments
 parser.add_argument('--num_classes', type=int, default=None, help='Number of classes for classification (will be determined by dataset)')
 
+parser.add_argument('--augmentation_ratio', type=float, default=0.0, help='How many times to augment (classification)')
  
+
 
 parser.add_argument('--prompt', type=int, default=0) # Indicates whether prompt-based training is used (0 = No, 1 = Yes).
 
