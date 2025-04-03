@@ -19,8 +19,14 @@ import clip
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
+import gdown
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 criterion = nn.MSELoss()
+# folder_id = '1--gS9NbfADBB0qIM99xhhXHGjTDet88k'  # Your Google Drive folder ID
+folder_id = "/home/arielsi/VisionaryTimes/Pics_embed"
+
 
 class ComplexLinear(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -470,6 +476,14 @@ class TEMPO(nn.Module):
                 return x, reduce_sim, selected_prompts
             else:
                 return x
+    
+
+    def save_embedding(self, embed_vec, filename="", save_dir="/home/arielsi/VisionaryTimes/Pics_embed/Trends_embed"):
+        os.makedirs(save_dir, exist_ok=True)   # Ensure the save directory exists
+        file_path = os.path.join(save_dir, filename)
+        torch.save(embed_vec, file_path)
+        print(f"Saved embedding to {file_path}")
+
             
     def create_image(self, x_local):
         images = []
@@ -477,70 +491,77 @@ class TEMPO(nn.Module):
             # Create a plot
             fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
             ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {i+1}")
-
             buf = BytesIO()
             plt.savefig(buf, format='png')
             buf.seek(0)
             image = Image.open(buf).convert("RGB")
             buf.close()
             plt.close(fig)  # Close the plot to free resources
-
             # Preprocess the image using the vision encoder's preprocess function
             image_tensor = self.vision_encoder_preprocess(image).to(self.device)
             images.append(image_tensor)
         ans = torch.stack(images)
         return ans
         
-    # def vision_embed(self, x_local, image, type = 'Trend'):
-    #     # vis_layer_trend
-    #     [a,b,c] = x_local.shape
-    #     if type == 'Trend': 
-    #         with torch.no_grad():
-    #             image_embed_vec = self.vision_encoder.encode_image(image)
-    #         image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
-    #         image_embed_vec = self.vis_layer_trend(image_embed_vec)
-    #         image_embed_vec = image_embed_vec.unsqueeze(1)
-    #         # image_embed_vec = image_embed_vec.repeat(a,1,1)
-    #         # image_embed_vec = self.d_vis_layer_trend(image_embed_vec)
-    #         x_local = torch.cat((image_embed_vec, x_local), dim=1)
-            
-    #     elif type == 'Season': 
-    #         with torch.no_grad():
-    #             image_embed_vec = self.vision_encoder.encode_image(image)
-    #         image_embed_vec = image_embed_vec.to(self.vis_layer_season.weight.dtype)
-    #         image_embed_vec = self.vis_layer_season(image_embed_vec)
-    #         image_embed_vec = image_embed_vec.unsqueeze(1)
-    #         # image_embed_vec = image_embed_vec.repeat(a,1,1)
-    #         # image_embed_vec = self.d_vis_layer_season(image_embed_vec)
-    #         x_local = torch.cat((image_embed_vec, x_local), dim=1)
-            
-    #     elif type == 'Residual': 
-    #         with torch.no_grad():
-    #             image_embed_vec = self.vision_encoder.encode_image(image)
-    #         image_embed_vec = image_embed_vec.to(self.vis_layer_noise.weight.dtype)
-    #         image_embed_vec = self.vis_layer_noise(image_embed_vec)
-    #         image_embed_vec = image_embed_vec.unsqueeze(1)
-    #         # image_embed_vec = image_embed_vec.repeat(a,1,1)
-    #         # image_embed_vec = self.d_vis_layer_noise(image_embed_vec)
-    #         x_local = torch.cat((image_embed_vec, x_local), dim=1)
-        
-    #     return x_local
 
-    def vision_embed(self, x_local, vis_embed, type = 'Trend'):
-        
-        if type == 'Trend':
-            vis_embed = self.vis_layer_trend(vis_embed)
-            x_local = torch.cat((vis_embed, x_local), dim=1)
-        if type == 'Season':
-            vis_embed = self.vis_layer_season(vis_embed)
-            x_local = torch.cat((vis_embed, x_local), dim=1)
-        if type == 'Residual':
-            vis_embed = self.vis_layer_noise(vis_embed)
-            x_local = torch.cat((vis_embed, x_local), dim=1)
-        
+    def vision_embed(self, x_local, image, type='Trend'):
+        [a, b, c] = x_local.shape
+        print(f"x_local shape: {x_local.shape}")
+        print(f"image_embed_vec shape: {image.shape}")
+        # Process image and compute its embedding
+        with torch.no_grad():
+            image_embed_vec = self.vision_encoder.encode_image(image)
+        image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
+
+        if type == 'Trend': 
+            image_embed_vec = self.vis_layer_trend(image_embed_vec)
+        elif type == 'Season': 
+            image_embed_vec = self.vis_layer_season(image_embed_vec)
+        elif type == 'Residual': 
+            image_embed_vec = self.vis_layer_noise(image_embed_vec)
+
+        # Unsqueeze to add the channel dimension if it's required
+        image_embed_vec = image_embed_vec.unsqueeze(1)  # shape: [128, 1, feature_size]
+        print(f"image_embed_vec shape after layer: {image_embed_vec.shape}")
+        # image_embed_vec shape: [128, 1, feature_size] , x_local shape: [128, 64, 16] 
+        feature_size = image_embed_vec.shape[2]  # Extract feature size from image_embed_vec
+        x_local = x_local.reshape(a, -1)  # Flatten x_local if needed
+        print(f"x_local shape after flattening: {x_local.shape}")
+        x_local = torch.cat((image_embed_vec.reshape(a, -1), x_local), dim=1)  # Flatten image_embed_vec to match the flattened x_local
         return x_local
+    
 
+    @torch.no_grad()
+    def compute_vision_embeddings(self, x, save_dir="/home/arielsi/VisionaryTimes/Pics_embed"):
+        """Computes only the vision embeddings without running the full forward process."""
+        os.makedirs(save_dir, exist_ok=True)  # Ensure save directory exists
         
+        B, L, M = x.shape  # Batch, Length, Features
+        x = self.rev_in_trend(x, 'norm')
+        # Compute trend, season, and noise components
+        trend_local = self.moving_avg(x)
+        trend_local = self.map_trend(trend_local.squeeze(2)).unsqueeze(2)
+        season_local = x - trend_local
+        season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
+        noise_local = x - trend_local - season_local
+        trend = self.get_patch(trend_local) # 4, 64, 16
+        season = self.get_patch(season_local)
+        noise = self.get_patch(noise_local)
+
+        # Create images from the components
+        trend_image = self.create_image(trend_local)
+        season_image = self.create_image(season_local)
+        noise_image = self.create_image(noise_local)
+        
+        # Compute vision embeddings
+        trend_embed = self.vision_embed(trend, trend_image, 'Trend')
+        season_embed = self.vision_embed(season, season_image, 'Season')
+        noise_embed = self.vision_embed(noise, noise_image, 'Residual')
+            
+        return trend_embed, season_embed, noise_embed
+
+
+
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
         B, L, M = x.shape # 4, 512, 1
         x = self.rev_in_trend(x, 'norm')
@@ -573,16 +594,15 @@ class TEMPO(nn.Module):
         trend = self.get_patch(trend_local) # 4, 64, 16
         season = self.get_patch(season_local)
         noise = self.get_patch(noise_local)
-
-        # in_layer_trend: patch_size ---> d_model
-        trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, number of patches, patch_size ---> d_model]
-
+        
         if self.vision:
             # creating plot image of each component
             trend_image = self.create_image(trend_local)
             season_image = self.create_image(season_local)
             noise_image = self.create_image(noise_local)
 
+        # in_layer_trend: patch_size ---> d_model
+        trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, number of patches, patch_size ---> d_model]
         if self.is_gpt and self.prompt == 1:
             if self.pool:
                 trend, reduce_sim_trend, trend_selected_prompts = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
@@ -591,10 +611,12 @@ class TEMPO(nn.Module):
                 trend = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
                 if self.vision:
                     trend = self.vision_embed(trend, trend_image, 'Trend')
+                    self.save_embedding(trend, 'Trend', folder_id)
         else:
             trend = self.get_emb(trend)
             if self.vision:
                 trend = self.vision_embed(trend, trend_image, 'Trend')
+                self.save_embedding(trend, 'Trend', folder_id)
 
         season = self.in_layer_season(season) # 4, 64, 768
         if self.is_gpt and self.prompt == 1:
@@ -604,10 +626,12 @@ class TEMPO(nn.Module):
                 season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
                 if self.vision:
                     season = self.vision_embed(season, season_image, 'Season')
+                    self.save_embedding(season, 'Season', folder_id)
         else:
             season = self.get_emb(season)
             if self.vision:
                 season = self.vision_embed(season, season_image, 'Season')
+                self.save_embedding(season, 'Season', folder_id)
 
         noise = self.in_layer_noise(noise)
         if self.is_gpt and self.prompt == 1:
@@ -617,16 +641,22 @@ class TEMPO(nn.Module):
                 noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
                 if self.vision:
                     noise = self.vision_embed(noise, noise_image, 'Residual')
+                    self.save_embedding(noise, 'Residual', folder_id)
+
         else:
             noise = self.get_emb(noise)
             if self.vision:
                 noise = self.vision_embed(noise, noise_image, 'Residual')
+                self.save_embedding(noise, 'Residual', folder_id)
 
         # print(noise_selected_prompts)
 
         # self.store_tensors_in_dict(original_x, trend_local, season_local, noise_local, trend_selected_prompts, season_selected_prompts, noise_selected_prompts)
         
         x_all = torch.cat((trend, season, noise), dim=1)
+        
+        # print('vis_saved')
+        # return 
 
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
         vision_token_len = 1
@@ -659,13 +689,11 @@ class TEMPO(nn.Module):
         # print(season.shape)
         season = rearrange(season, '(b m) l -> b l m', b=B) # 4, 96, 1
         # season = season * stdev_season + means_season
-
         noise = self.out_layer_noise(noise.reshape(B*M, -1)) # 4, 96
         noise = rearrange(noise, '(b m) l -> b l m', b=B)
         # noise = noise * stdev_noise + means_noise
         
         outputs = trend + season + noise #season #trend # #+ noise
-
         # outputs = outputs * stdev + means
         outputs = self.rev_in_trend(outputs, 'denorm')
         # if self.pool:
@@ -689,7 +717,9 @@ class TEMPO(nn.Module):
         
         if test:
             return outputs, None
+        
         return outputs, loss_local
+    
     
 
     def predict(self, x, pred_length=96):
@@ -731,6 +761,9 @@ class TEMPO(nn.Module):
         # Ensure x is on the same device as the model
         x = x.to(self.device)
        
+        
+        
+        
         # with torch.no_grad():
         #     outputs, _ = self.forward(x, test=True)        
         # # Extract the predicted values
@@ -758,65 +791,6 @@ class TEMPO(nn.Module):
         # Trim to the desired length
         return np.array(all_predictions[:pred_length])
     
-    def predict_prob(self, x, pred_length=96):
-        """
-        Predict using the TEMPO model.
-        
-        Args:
-        - x: Input time series data (shape: [B, L, M])
-        
-        Returns:
-        - Predicted output
-        """
-        pass
-        # self.eval()  # Set the model to evaluation mode
 
-        # x = torch.FloatTensor(x).unsqueeze(0).unsqueeze(2).to(self.device)  # Shape: [1, 336, 1]
-        # x = self.rev_in_trend(x, 'norm')
-        
-        # B, L, M = x.shape
-        # target_length = self.seq_len  # Maximum supported length
-        
-        # if L > target_length:
-        #     warnings.warn(f"Input length {L} is larger than the maximum supported length of {target_length}. "
-        #                   f"This may influence performance. Cutting the input to the last {target_length} time steps.")
-        #     x = x[:, -target_length:, :]
-        # elif L < target_length:
-        #     pad_length = target_length - L
-        #     if pad_length <= L:
-        #         # Pad by repeating the time series
-        #         x_padded = torch.cat([x] * (target_length // L + 1), dim=1)[:, :target_length, :]
-        #     else:
-        #         # Pad with zeros at the beginning
-        #         padding = torch.zeros(B, pad_length, M, device=x.device)
-        #         x_padded = torch.cat([padding, x], dim=1)
-            
-        #     x = x_padded
-        #     warnings.warn(f"Input length {L} is smaller than the required length of {target_length}. "
-        #                   f"The time series has been {'repeated' if pad_length <= L else 'zero-padded'} to reach the required length.")
-        
-        # # Ensure x is on the same device as the model
-        # x = x.to(self.device)
-
-        # with torch.no_grad():
-        #     current_input = x.clone()
-        #     all_predictions = []
-            
-        #     while len(all_predictions) < pred_length:
-        #         # Forward pass
-        #         outputs, _ = self.forward(current_input, test=True)
-        #         outputs = self.rev_in_trend(outputs, 'denorm')
-        #         step_size = outputs.shape[1]
-        #         # Extract the predicted values
-        #         predicted_values = outputs.cpu().squeeze().numpy()[-step_size:]
-                
-        #         # Append to all predictions
-        #         all_predictions.extend(predicted_values)
-                
-        #         # Update the input for the next iteration
-        #         new_sequence = np.concatenate([current_input.cpu().squeeze().numpy()[step_size:], predicted_values])
-        #         current_input = torch.FloatTensor(new_sequence).unsqueeze(0).unsqueeze(2)
-        # # Trim to the desired length
-        # return np.array(all_predictions[:pred_length])
             
         

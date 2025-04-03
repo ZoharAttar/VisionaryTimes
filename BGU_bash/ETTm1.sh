@@ -43,6 +43,7 @@ echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equ
 python train_TEMPO.py \
     --datasets ETTh1,ETTh2,ETTm2,electricity,traffic,weather \
     --target_data ETTm1 \
+    --eval_data ETTm1\
     --config_path ./configs/multiple_datasets.yml \
     --stl_weight 0.01 \
     --equal $equal \
@@ -72,6 +73,8 @@ python train_TEMPO.py \
     --model $model \
     --tmax $tmax \
     --cos 1 \
+    --vis_encoder_dim 512 \
+    --vision 1 \
     --is_gpt 1 >> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
 

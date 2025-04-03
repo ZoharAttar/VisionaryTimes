@@ -49,8 +49,6 @@ class Dataset_Monash(Dataset):
         self.__read_data__()
 
        
-
-
     def __read_data__(self):
         self.scaler = StandardScaler()
         files = os.listdir(self.root_path)
@@ -82,9 +80,6 @@ class Dataset_Monash(Dataset):
 
         print(len(self.all_datasets_list))
         # import pdb; pdb.set_trace()
-
-        
-
         # if self.timeenc == 0:
         #     df_stamp['month'] = df_stamp.date.apply(lambda row: row.month, 1)
         #     df_stamp['day'] = df_stamp.date.apply(lambda row: row.day, 1)
@@ -541,7 +536,7 @@ class Dataset_Custom(Dataset):
                 df = data_raw[col]
                 # df = df.resample(self.args.freq).mean().ffill()
                 
-                
+            
                 if 'weather' in self.data_name: # == 'weather':
                     res = STL(df, period = 24*6).fit()
                 elif 'ill' in self.data_name:
@@ -591,10 +586,6 @@ class Dataset_Custom(Dataset):
         
         if self.set_type == 0:
             border2 = (border2 - self.seq_len) * self.percent // 100 + self.seq_len
-
-        
-       
-
         if self.features == 'M' or self.features == 'MS':
             cols_data = df_raw.columns[1:]
             df_data = df_raw[cols_data]
@@ -614,8 +605,6 @@ class Dataset_Custom(Dataset):
         data_raw = pd.DataFrame.join(df_time, pd.DataFrame(data))#[border1:border2]
         trend_stamp, seasonal_stamp, resid_stamp = self.stl_resolve(data_raw=data_raw)
         
-        
-
         df_stamp = df_raw[['date']][border1:border2]
         df_stamp['date'] = pd.to_datetime(df_stamp.date)
         if self.timeenc == 0:
@@ -725,7 +714,6 @@ class Dataset_Pred(Dataset):
             for i, col in enumerate(cols):
                 df = data_raw[col]
                 # df = df.resample(self.args.freq).mean().ffill()
-                
                 
                 if 'weather' in self.data_name: # == 'weather':
                     res = STL(df, period = 24*6).fit()

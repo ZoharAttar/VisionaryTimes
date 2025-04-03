@@ -20,7 +20,7 @@ traffic_multiplier=1
 
 for percent in 100 
 do
-for pred_len in  192 
+for pred_len in 96 
 do
 for tmax in 20
 do
@@ -42,6 +42,7 @@ echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equ
 python train_TEMPO.py \
     --datasets ETTh1 \
     --target_data ETTh2 \
+    --eval_data ETTh2\
     --config_path ./configs/multiple_datasets.yml \
     --stl_weight 0.001 \
     --equal $equal \
@@ -65,14 +66,18 @@ python train_TEMPO.py \
     --c_out 1 \
     --patch_size 16 \
     --stride 8 \
+    --vis_encoder_dim 512 \
+    --vision 0 \
     --gpt_layer $gpt_layer \
     --itr 3 \
-    --vision 1 \
-    --vis_encoder_dim 512 \
     --model $model \
     --tmax $tmax \
     --cos 1 \
     --is_gpt 1 #>> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
+    
+
+
+    
 
 
 done
