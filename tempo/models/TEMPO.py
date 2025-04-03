@@ -632,16 +632,6 @@ class TEMPO(nn.Module):
         
         x_all = torch.cat((trend, season, noise), dim=1)
 
-
-        if self.task_name == 'classification':
-            # For classification, we need to process the combined features
-            # through the classification head
-            x_all = x_all.mean(dim=1)  # Global average pooling
-            outputs = self.classification_head(x_all)
-            return outputs, loss_local if trend is not None else None
-    
-
-
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
         vision_token_len = 1
         
@@ -666,6 +656,14 @@ class TEMPO(nn.Module):
             trend  = x[:, :self.patch_num, :]  
             season  = x[:, self.patch_num:2*self.patch_num, :]  
             noise = x[:, 2*self.patch_num:, :] 
+
+        
+        if self.task_name == 'classification':
+            x_all = torch.cat((trend, season, noise), dim=1)
+            # through the classification head
+            x_all = x_all.mean(dim=1)  # Global average pooling
+            outputs = self.classification_head(x_all)
+            return outputs, loss_local if trend is not None else None
             
         trend = self.out_layer_trend(trend.reshape(B*M, -1)) # 4, 96
         trend = rearrange(trend, '(b m) l -> b l m', b=B) # 4, 96, 1
