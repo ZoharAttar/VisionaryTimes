@@ -109,3 +109,7 @@ datasets:
     embed: timeF
     freq: 0
     percent: 100
+  FaceDetection:
+    root_path: ./datasets/FaceDetection/
+    data_name: FaceDetection
+    data: UEA
