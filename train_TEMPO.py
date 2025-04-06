@@ -86,7 +86,7 @@ def prepare_data_loaders(args, config):
         test_data, test_loader = data_provider(args, 'TEST')
         
         # For classification, we use the same test set for validation
-        val_data, val_loader = test_data, test_loader
+        val_data, val_loader = train_data, train_loader #TODO 
     
     else:
         # Existing forecasting code
@@ -396,15 +396,14 @@ for ii in range(args.itr):
         epoch_time = time.time()
 
         if args.task_name == 'classification':
-            for i, (batch_x, label, padding_mask) in tqdm(enumerate(train_loader), total=len(train_loader)):
+            for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader), total=len(train_loader)):
                 iter_count += 1
                 model_optim.zero_grad()
                 
                 batch_x = batch_x.float().to(device)
                 label = label.to(device)
-                padding_mask = padding_mask.float().to(device)
 
-                outputs = model(batch_x, padding_mask, None, None)
+                outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
                 loss = criterion(outputs, label.long().squeeze(-1))
                 train_loss.append(loss.item())
 

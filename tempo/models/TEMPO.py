@@ -660,8 +660,10 @@ class TEMPO(nn.Module):
         
         if self.task_name == 'classification':
             x_all = torch.cat((trend, season, noise), dim=1)
+            print(x_all.shape)
             # through the classification head
             x_all = x_all.mean(dim=1)  # Global average pooling
+            print(x_all.shape)
             outputs = self.classification_head(x_all)
             return outputs, loss_local if trend is not None else None
             
