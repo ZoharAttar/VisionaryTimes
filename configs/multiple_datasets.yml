@@ -120,3 +120,14 @@ datasets:
     embed: timeF
     freq: 0
     percent: 100
+  Heartbeat:
+    root_path: ./dataset/Heartbeat/
+    data_path: Heartbeat_TRAIN.ts
+    data_name: Heartbeat
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100

@@ -964,7 +964,7 @@ class UEAloader(Dataset):
             (Moreover, script argument overrides this attribute)
     """
 
-    def __init__(self, args, root_path, file_list=None, limit_size=None, flag=None, data_name = 'FaceDetection'):
+    def __init__(self, args, root_path, file_list=None, limit_size=None, flag=None, data_name = 'Heartbeat'):
         self.args = args
         self.data_name = data_name
         self.root_path = root_path
@@ -991,19 +991,77 @@ class UEAloader(Dataset):
         self.trend_stamp, self.seasonal_stamp, self.resid_stamp = self.stl_resolve(data_raw=self.feature_df, data_name=self.data_name)
         
 
+    # def stl_resolve(self, data_raw, data_name):
+    #     """
+    #     STL Global Decomposition
+    #     """
+    #     # self.data_name = 'etth1'
+    #     self.data_name = data_name
+    #     save_stl = stl_position + self.data_name   
+    #     # save_stl = 'stl/' + 'weather'   
+
+    #     self.save_stl = save_stl
+    #     trend_pk = self.save_stl + '/trend.pk'
+    #     seasonal_pk = self.save_stl + '/seasonal.pk'
+    #     resid_pk = self.save_stl + '/resid.pk'
+    #     if os.path.isfile(trend_pk) and os.path.isfile(seasonal_pk) and os.path.isfile(resid_pk):
+    #         with open(trend_pk, 'rb') as f:
+    #             trend_stamp = pickle.load(f)
+    #         with open(seasonal_pk, 'rb') as f:
+    #             seasonal_stamp = pickle.load(f)
+    #         with open(resid_pk, 'rb') as f:
+    #             resid_stamp = pickle.load(f)
+    #     else:
+    #         os.makedirs(self.save_stl, exist_ok=True)
+    #         print(data_raw.columns)
+
+    #         data_raw['date'] = pd.to_datetime(data_raw['date'])
+
+
+    #         data_raw.set_index('date', inplace=True)
+
+    #         [n,m] = data_raw.shape
+
+    #         trend_stamp = torch.zeros([len(data_raw), m], dtype=torch.float32)
+    #         seasonal_stamp = torch.zeros([len(data_raw), m], dtype=torch.float32)
+    #         resid_stamp = torch.zeros([len(data_raw), m], dtype=torch.float32)
+
+    #         cols = data_raw.columns
+    #         for i, col in enumerate(cols):
+    #             df = data_raw[col]
+    #             # df = df.resample(self.args.freq).mean().ffill()
+    #             if 'weather' in self.data_name: # == 'weather':
+    #                 res = STL(df, period = 24*6).fit()
+    #             elif 'ill' in self.data_name: #== :
+    #                 res = STL(df, period = 7).fit()
+    #             elif 'etth1' in self.data_name or 'etth2' in self.data_name:
+    #                 res = STL(df, period = 24).fit()
+    #             else:
+    #                 res = STL(df, period = 24*2).fit()
+
+    #             trend_stamp[:, i] = torch.tensor(np.array(res.trend.values), dtype=torch.float32)
+    #             seasonal_stamp[:, i] = torch.tensor(np.array(res.seasonal.values), dtype=torch.float32)
+    #             resid_stamp[:, i] = torch.tensor(np.array(res.resid.values), dtype=torch.float32)
+    #         with open(trend_pk, 'wb') as f:
+    #             pickle.dump(trend_stamp, f)
+    #         with open(seasonal_pk, 'wb') as f:
+    #             pickle.dump(seasonal_stamp, f)
+    #         with open(resid_pk, 'wb') as f:
+    #             pickle.dump(resid_stamp, f)
+    #     return trend_stamp, seasonal_stamp, resid_stamp
+
     def stl_resolve(self, data_raw, data_name):
         """
-        STL Global Decomposition
+        STL Global Decomposition (adapted for UEA .ts format)
         """
-        # self.data_name = 'etth1'
         self.data_name = data_name
-        save_stl = stl_position + self.data_name   
-        # save_stl = 'stl/' + 'weather'   
-
+        save_stl = stl_position + self.data_name
         self.save_stl = save_stl
-        trend_pk = self.save_stl + '/trend.pk'
-        seasonal_pk = self.save_stl + '/seasonal.pk'
-        resid_pk = self.save_stl + '/resid.pk'
+
+        trend_pk = os.path.join(self.save_stl, 'trend.pk')
+        seasonal_pk = os.path.join(self.save_stl, 'seasonal.pk')
+        resid_pk = os.path.join(self.save_stl, 'resid.pk')
+
         if os.path.isfile(trend_pk) and os.path.isfile(seasonal_pk) and os.path.isfile(resid_pk):
             with open(trend_pk, 'rb') as f:
                 trend_stamp = pickle.load(f)
@@ -1013,42 +1071,57 @@ class UEAloader(Dataset):
                 resid_stamp = pickle.load(f)
         else:
             os.makedirs(self.save_stl, exist_ok=True)
-            print(data_raw.columns)
 
-            data_raw['date'] = pd.to_datetime(data_raw['date'])
-            data_raw.set_index('date', inplace=True)
+            # UEA datasets are loaded with sktime; data_raw is ignored here
+            X, y = load_from_tsfile_to_dataframe(
+                os.path.join(self.root_path, f"{self.data_name}_TRAIN.ts"),
+                return_separate_X_and_y=True
+            )
+            print("X columns:")
+            print(X.columns)
+            print("X:")
+            print(X)
+            print("y:")
+            print(y)
 
-            [n,m] = data_raw.shape
+            n_samples = len(X)
+            n_channels = X.iloc[0].shape[0]
+            series_len = len(X.iloc[0][0])
 
-            trend_stamp = torch.zeros([len(data_raw), m], dtype=torch.float32)
-            seasonal_stamp = torch.zeros([len(data_raw), m], dtype=torch.float32)
-            resid_stamp = torch.zeros([len(data_raw), m], dtype=torch.float32)
+            trend_stamp = torch.zeros([n_samples, n_channels], dtype=torch.float32)
+            seasonal_stamp = torch.zeros([n_samples, n_channels], dtype=torch.float32)
+            resid_stamp = torch.zeros([n_samples, n_channels], dtype=torch.float32)
 
-            cols = data_raw.columns
-            for i, col in enumerate(cols):
-                df = data_raw[col]
-                # df = df.resample(self.args.freq).mean().ffill()
-                if 'weather' in self.data_name: # == 'weather':
-                    res = STL(df, period = 24*6).fit()
-                elif 'ill' in self.data_name: #== :
-                    res = STL(df, period = 7).fit()
+            for i, col in enumerate(X.columns):
+                # Compute the average series across all samples for global decomposition
+                # avg_series = np.mean([X.iloc[j][col] for j in range(n_samples)], axis=0)
+                avg_series = np.mean([X.iloc[j][col] for j in range(n_samples)], axis=0)
+                df = pd.Series(avg_series)
+                df.index = pd.date_range("2000-01-01", periods=len(df), freq="D")
+
+                if 'weather' in self.data_name:
+                    res = STL(df, period=24 * 6).fit()
+                elif 'ill' in self.data_name:
+                    res = STL(df, period=7).fit()
                 elif 'etth1' in self.data_name or 'etth2' in self.data_name:
-                    res = STL(df, period = 24).fit()
+                    res = STL(df, period=24).fit()
                 else:
-                    res = STL(df, period = 24*2).fit()
+                    res = STL(df, period=48).fit()
 
-                trend_stamp[:, i] = torch.tensor(np.array(res.trend.values), dtype=torch.float32)
-                seasonal_stamp[:, i] = torch.tensor(np.array(res.seasonal.values), dtype=torch.float32)
-                resid_stamp[:, i] = torch.tensor(np.array(res.resid.values), dtype=torch.float32)
+                trend_stamp[:, i] = torch.tensor(res.trend.values, dtype=torch.float32)
+                seasonal_stamp[:, i] = torch.tensor(res.seasonal.values, dtype=torch.float32)
+                resid_stamp[:, i] = torch.tensor(res.resid.values, dtype=torch.float32)
+
             with open(trend_pk, 'wb') as f:
                 pickle.dump(trend_stamp, f)
             with open(seasonal_pk, 'wb') as f:
                 pickle.dump(seasonal_stamp, f)
             with open(resid_pk, 'wb') as f:
                 pickle.dump(resid_stamp, f)
+
         return trend_stamp, seasonal_stamp, resid_stamp
 
-
+            
     def load_all(self, root_path, file_list=None, flag=None):
         """
         Loads datasets from ts files contained in `root_path` into a dataframe, optionally choosing from `pattern`
@@ -1137,11 +1210,12 @@ class UEAloader(Dataset):
             batch_x = batch_x.reshape((1 * seq_len, num_columns))
 
         seq_len = self.max_seq_len # seq_len = max(train_data.max_seq_len, test_data.max_seq_len)
-        tot_len = len(self.data_x) - seq_len - 0 + 1 # (pred_len = 0)
+        tot_len = len(self.feature_df) - seq_len - 0 + 1 # (pred_len = 0)
+
         feat_id = ind // tot_len
         s_begin = ind % tot_len
         
-        s_end = s_begin + self.seq_len
+        s_end = s_begin + seq_len
 
         seq_trend = self.trend_stamp[s_begin:s_end, feat_id:feat_id+1]
         seq_seasonal = self.seasonal_stamp[s_begin:s_end, feat_id:feat_id+1]
@@ -1149,7 +1223,7 @@ class UEAloader(Dataset):
 
         # return self.instance_norm(torch.from_numpy(batch_x)), \
         #        torch.from_numpy(labels)
-        return batch_x, labels, x_trend, x_seasonal, x_resid
+        return batch_x, labels, seq_trend, seq_seasonal, seq_resid
 
     def __len__(self):
         return len(self.all_IDs)
