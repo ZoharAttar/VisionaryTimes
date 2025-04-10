@@ -569,7 +569,9 @@ class Dataset_Custom(Dataset):
                 pickle.dump(seasonal_stamp, f)
             with open(resid_pk, 'wb') as f:
                 pickle.dump(resid_stamp, f)
-        return trend_stamp, seasonal_stamp, resid_stamp
+        return 
+        
+
 
     def __read_data__(self):
         self.scaler = StandardScaler()
@@ -947,7 +949,7 @@ class Dataset_TSF(Dataset):
         else:
             return self.tot_len
 
-class UEAloader(Dataset):
+class UEAloaderOriginal(Dataset):
     """
     Dataset class for datasets included in:
         Time Series Classification Archive (www.timeseriesclassification.com)
@@ -1095,7 +1097,6 @@ class UEAloader(Dataset):
             for i, col in enumerate(X.columns):
                 # Compute the average series across all samples for global decomposition
                 # avg_series = np.mean([X.iloc[j][col] for j in range(n_samples)], axis=0)
-                avg_series = np.mean([X.iloc[j][col] for j in range(n_samples)], axis=0)
                 df = pd.Series(avg_series)
                 df.index = pd.date_range("2000-01-01", periods=len(df), freq="D")
 
@@ -1227,3 +1228,140 @@ class UEAloader(Dataset):
 
     def __len__(self):
         return len(self.all_IDs)
+
+
+class UEAloader(Dataset):
+    """
+    Dataset class for datasets included in:
+        Time Series Classification Archive (www.timeseriesclassification.com)
+    Argument:
+        limit_size: float in (0, 1) for debug
+    Attributes:
+        all_df: (num_samples * seq_len, num_columns) dataframe indexed by integer indices, with multiple rows corresponding to the same index (sample).
+            Each row is a time step; Each column contains either metadata (e.g. timestamp) or a feature.
+        feature_df: (num_samples * seq_len, feat_dim) dataframe; contains the subset of columns of `all_df` which correspond to selected features
+        feature_names: names of columns contained in `feature_df` (same as feature_df.columns)
+        all_IDs: (num_samples,) series of IDs contained in `all_df`/`feature_df` (same as all_df.index.unique() )
+        labels_df: (num_samples, num_labels) pd.DataFrame of label(s) for each sample
+        max_seq_len: maximum sequence (time series) length. If None, script argument `max_seq_len` will be used.
+            (Moreover, script argument overrides this attribute)
+    """
+
+    def __init__(self, args, root_path, file_list=None, limit_size=None, flag=None, data_name = 'Heartbeat'):
+        self.args = args
+        self.data_name = data_name
+        self.root_path = root_path
+        self.flag = flag
+        self.all_df, self.labels_df = self.load_all(root_path, file_list=file_list, flag=flag)
+        self.all_IDs = self.all_df.index.unique()  # all sample IDs (integer indices 0 ... num_samples-1)
+
+        if limit_size is not None:
+            if limit_size > 1:
+                limit_size = int(limit_size)
+            else:  # interpret as proportion if in (0, 1]
+                limit_size = int(limit_size * len(self.all_IDs))
+            self.all_IDs = self.all_IDs[:limit_size]
+            self.all_df = self.all_df.loc[self.all_IDs]
+
+        # use all features
+        self.feature_names = self.all_df.columns
+        self.feature_df = self.all_df
+
+        # pre_process
+        normalizer = Normalizer()
+  
+        
+        def parse_series(cell):
+            """Convert a pandas Series containing numpy.float64 to a list of floats"""
+            if isinstance(cell, pd.Series):  # Ensure the cell is a pandas Series
+                return cell.tolist()  # Convert the Series to a list of floats
+            else:
+                return []  # Return an empty list or handle differently if needed
+
+
+        # Load data
+        df, labels = self.feature_df, self.labels_df
+
+        # Parse each time series string into a list of floats
+        parsed_df = df.applymap(parse_series)
+
+        # Convert DataFrame to 3D numpy array: [n_samples, n_channels, time_length]
+        X = np.array([np.stack(row.values) for _, row in parsed_df.iterrows()])
+
+        # Initialize an empty list to store the processed results
+        x = []
+        x_trend, x_seasonal, x_resid = [], [], []
+        y = []
+        samples_ids = []
+
+        for i, sample in enumerate(X):
+            
+            # Loop through each time series in the sample (axis 1 - n_channels)
+            for series in sample:
+                series = normalizer.normalize(series)
+
+                # Apply the function to the series
+                x.append(series)
+                res = STL(series, period=404).fit() #period is number of timestamps
+                x_trend.append(res.trend)
+                x_seasonal.append(res.seasonal)
+                x_resid.append(res.resid)
+                y.append(labels[i])
+                samples_ids.append(i)
+        
+        self.x = np.array(x)
+        self.x_trend = np.array(x_trend)
+        self.x_seasonal = np.array(x_seasonal)
+        self.x_resid = np.array(x_resid)
+        self.y = np.array(y)
+        self.samples_ids = np.array(samples_ids)
+    
+    def __len__(self):
+        return self.x.shape[0]
+
+    def __getitem__(self, index):
+        x = self.x[index]
+        x_trend = self.x_trend[index]
+        x_seasonal = self.x_seasonal[index]
+        x_resid = self.x_resid[index]
+        y = self.y[index]
+
+        return x, y, x_trend, x_seasonal, x_resid   
+
+    def load_all(self, root_path, file_list=None, flag=None):
+        """
+        Loads datasets from ts files contained in `root_path` into a dataframe, optionally choosing from `pattern`
+        Args:
+            root_path: directory containing all individual .ts files
+            file_list: optionally, provide a list of file paths within `root_path` to consider.
+                Otherwise, entire `root_path` contents will be used.
+        Returns:
+            all_df: a single (possibly concatenated) dataframe with all data corresponding to specified files
+            labels_df: dataframe containing label(s) for each sample
+        """
+        # Select paths for training and evaluation
+        if file_list is None:
+            data_paths = glob.glob(os.path.join(root_path, '*'))  # list of all paths
+        else:
+            data_paths = [os.path.join(root_path, p) for p in file_list]
+        if len(data_paths) == 0:
+            raise Exception('No files found using: {}'.format(os.path.join(root_path, '*')))
+        if flag is not None:
+            data_paths = list(filter(lambda x: re.search(flag, x), data_paths))
+        input_paths = [p for p in data_paths if os.path.isfile(p) and p.endswith('.ts')]
+        if len(input_paths) == 0:
+            pattern='*.ts'
+            raise Exception("No .ts files found using pattern: '{}'".format(pattern))
+
+        all_df, labels_df = self.load_single(input_paths[0])  # a single file contains dataset
+
+        return all_df, labels_df
+
+    def load_single(self, filepath):
+        df, labels = load_from_tsfile_to_dataframe(filepath, return_separate_X_and_y=True,
+                                                             replace_missing_vals_with='NaN')
+        return df, labels 
+
+
+        
+        
