@@ -41,8 +41,6 @@ def print_dataset_info(data, loader, name="Dataset"):
     print(f"Number of samples: {len(data)}")
     print(f"Batch size: {loader.batch_size}")
     print(f"Number of batches: {len(loader)}")
-    
-    
     for attr in ['features', 'targets', 'shape']:
         if hasattr(data, attr):
             print(f"{attr}: {getattr(data, attr)}")
@@ -58,11 +56,9 @@ def prepare_data_loaders(args, config):
     Returns:
         tuple: (train_data, train_loader, test_data, test_loader, val_data, val_loader)
     """
-    
     train_datas = []
     val_datas = []
     min_sample_num = sys.maxsize
-    
     # First pass to get validation data and minimum sample number
     for dataset_name in args.datasets.split(','):
         _update_args_from_config(args, config, dataset_name)
@@ -132,24 +128,29 @@ def _combine_datasets(datasets):
         combined = torch.utils.data.ConcatDataset([combined, dataset])
     return combined
 
-def compute_vision_embeddings(model, data_loader, device, save_dir):
+def compute_vision_embeddings(model, data_loader, device, save_dir, data):
     """Compute embeddings using TEMPO's vision-based method."""
     model.eval()
     os.makedirs(save_dir, exist_ok=True)
-
     with torch.no_grad():
         trend_list, season_list, noise_list = [] , [] , []
-        for batch_x, _, _, _, _, _, _ in tqdm(data_loader, desc="Computing Vision Embeddings"):
+        for batch_x, _, _, _, _, _, _, _, _, _, in tqdm(data_loader, total = len(data_loader)):
             batch_x = batch_x.float().to(device)
             trend_embed, season_embed, noise_embed = model.compute_vision_embeddings(batch_x, save_dir)
             trend_list.append(trend_embed)
             season_list.append(season_embed)
             noise_list.append(noise_embed)
+            
         
+    trend_tensor = torch.stack(trend_list).unsqueeze(1)
+    season_tensor = torch.stack(season_list).unsqueeze(1)
+    noise_tensor = torch.stack(noise_list).unsqueeze(1)
 
-    torch.save(trend_embed, os.path.join(save_dir, "trend_embedding.pth"))
-    torch.save(season_embed, os.path.join(save_dir, "season_embedding.pth"))
-    torch.save(noise_embed, os.path.join(save_dir, "noise_embedding.pth"))
+    # print(trend_tensor.shape)
+    data = data.lower()
+    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_trend_embedding.pth'))
+    torch.save(season_tensor, os.path.join(save_dir, f'{data}_season_embedding.pth'))
+    torch.save(noise_tensor, os.path.join(save_dir, f'{data}_noise_embedding.pth'))
     print(f"Vision embeddings saved in {save_dir}")
 
 
@@ -225,7 +226,7 @@ model = TEMPO(args, device).to(device)
 train_data, train_loader, test_data, test_loader = prepare_data_loaders(args, config)[0:4]
 
 # Compute vision embeddings for train
-compute_vision_embeddings(model, train_loader, device, args.save_dir)
+compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data)
 
 # Compute vision embeddings for test
-compute_vision_embeddings(model, test_loader, device, args.save_dir)
+# compute_vision_embeddings(model, test_loader, device, args.save_dir, args.target_data)

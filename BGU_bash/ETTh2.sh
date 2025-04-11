@@ -40,7 +40,7 @@ echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equ
 
 
 python train_TEMPO.py \
-    --datasets ETTh1 \
+    --datasets ETTh2 \
     --target_data ETTh2 \
     --eval_data ETTh2\
     --config_path ./configs/multiple_datasets.yml \

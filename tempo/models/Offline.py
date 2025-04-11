@@ -478,11 +478,11 @@ class TEMPO(nn.Module):
                 return x
     
 
-    def save_embedding(self, embed_vec, filename="", save_dir="/home/arielsi/VisionaryTimes/Pics_embed/Trends_embed"):
-        os.makedirs(save_dir, exist_ok=True)   # Ensure the save directory exists
-        file_path = os.path.join(save_dir, filename)
-        torch.save(embed_vec, file_path)
-        print(f"Saved embedding to {file_path}")
+    # def save_embedding(self, embed_vec, filename="", save_dir="/home/arielsi/VisionaryTimes/Pics_embed/Trends_embed"):
+    #     os.makedirs(save_dir, exist_ok=True)   # Ensure the save directory exists
+    #     file_path = os.path.join(save_dir, filename)
+    #     torch.save(embed_vec, file_path)
+    #     print(f"Saved embedding to {file_path}")
 
             
     def create_image(self, x_local):
@@ -504,31 +504,12 @@ class TEMPO(nn.Module):
         return ans
         
 
-    def vision_embed(self, x_local, image, type='Trend'):
-        [a, b, c] = x_local.shape
-        print(f"x_local shape: {x_local.shape}")
-        print(f"image_embed_vec shape: {image.shape}")
+    def vision_embed(self, image, type='Trend'):
         # Process image and compute its embedding
         with torch.no_grad():
             image_embed_vec = self.vision_encoder.encode_image(image)
         image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
-
-        if type == 'Trend': 
-            image_embed_vec = self.vis_layer_trend(image_embed_vec)
-        elif type == 'Season': 
-            image_embed_vec = self.vis_layer_season(image_embed_vec)
-        elif type == 'Residual': 
-            image_embed_vec = self.vis_layer_noise(image_embed_vec)
-
-        # Unsqueeze to add the channel dimension if it's required
-        image_embed_vec = image_embed_vec.unsqueeze(1)  # shape: [128, 1, feature_size]
-        print(f"image_embed_vec shape after layer: {image_embed_vec.shape}")
-        # image_embed_vec shape: [128, 1, feature_size] , x_local shape: [128, 64, 16] 
-        feature_size = image_embed_vec.shape[2]  # Extract feature size from image_embed_vec
-        x_local = x_local.reshape(a, -1)  # Flatten x_local if needed
-        print(f"x_local shape after flattening: {x_local.shape}")
-        x_local = torch.cat((image_embed_vec.reshape(a, -1), x_local), dim=1)  # Flatten image_embed_vec to match the flattened x_local
-        return x_local
+        return image_embed_vec
     
 
     @torch.no_grad()
@@ -544,9 +525,13 @@ class TEMPO(nn.Module):
         season_local = x - trend_local
         season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
         noise_local = x - trend_local - season_local
-        trend = self.get_patch(trend_local) # 4, 64, 16
-        season = self.get_patch(season_local)
-        noise = self.get_patch(noise_local)
+        
+        # if vis iis local
+        # trend = self.get_patch(trend_local) # 4, 64, 16
+        # season = self.get_patch(season_local)
+        # noise = self.get_patch(noise_local)
+
+        # print(trend_local.shape)
 
         # Create images from the components
         trend_image = self.create_image(trend_local)
@@ -554,9 +539,11 @@ class TEMPO(nn.Module):
         noise_image = self.create_image(noise_local)
         
         # Compute vision embeddings
-        trend_embed = self.vision_embed(trend, trend_image, 'Trend')
-        season_embed = self.vision_embed(season, season_image, 'Season')
-        noise_embed = self.vision_embed(noise, noise_image, 'Residual')
+        trend_embed = self.vision_embed(trend_image, 'Trend')
+        season_embed = self.vision_embed(season_image, 'Season')
+        noise_embed = self.vision_embed(noise_image, 'Residual')
+
+        # print(trend_embed.shape)
             
         return trend_embed, season_embed, noise_embed
 

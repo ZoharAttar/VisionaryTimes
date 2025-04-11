@@ -20,7 +20,7 @@ traffic_multiplier=1
 
 for percent in 100 
 do
-for pred_len in  96  
+for pred_len in 96  
 do
 for tmax in 20
 do
@@ -41,7 +41,7 @@ echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equ
 # python test_multi_6domain_release.py \
 
 python train_TEMPO.py \
-    --datasets ETTh1,ETTh2,ETTm2,electricity,traffic,weather \
+    --datasets ETTm1 \
     --target_data ETTm1 \
     --eval_data ETTm1\
     --config_path ./configs/multiple_datasets.yml \
@@ -74,7 +74,7 @@ python train_TEMPO.py \
     --tmax $tmax \
     --cos 1 \
     --vis_encoder_dim 512 \
-    --vision 1 \
+    --vision 0 \
     --is_gpt 1 >> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
 

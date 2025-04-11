@@ -9,26 +9,21 @@ from tempo.models.TEMPO import TEMPO
 from tempo.models.T5 import T54TS
 from tempo.models.ETSformer import ETSformer
 # from tempo.models.offline import TEMPO
-
-
 import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
 from numpy.random import choice
-
 import os
 import time
-
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
-
 import argparse
 import random
 import sys
-
 from omegaconf import OmegaConf
+
 
 def get_init_config(config_path=None):
     config = OmegaConf.load(config_path)
@@ -47,13 +42,9 @@ def print_dataset_info(data, loader, name="Dataset"):
     print(f"Number of samples: {len(data)}")
     print(f"Batch size: {loader.batch_size}")
     print(f"Number of batches: {len(loader)}")
-    
-    
     for attr in ['features', 'targets', 'shape']:
         if hasattr(data, attr):
             print(f"{attr}: {getattr(data, attr)}")
-    
-
     # for batch in loader:
     #     if isinstance(batch, (tuple, list)):
     #         print("\nFirst batch shapes:")
@@ -107,8 +98,7 @@ def prepare_data_loaders(args, config):
                                   int(min_sample_num * args.electri_multiplier)))
             elif dataset_name == 'traffic' and args.traffic_multiplier > 1:
                 train_data = Subset(train_data, choice(len(train_data),
-                                  int(min_sample_num * args.traffic_multiplier)))
-                
+                                  int(min_sample_num * args.traffic_multiplier)))      
         train_datas.append(train_data)
 
     # Combine datasets if multiple exist
@@ -137,7 +127,6 @@ def _update_args_from_config(args, config, dataset_name):
     for key in ['data', 'root_path', 'data_path', 'data_name', 'features',
                 'freq', 'target', 'embed', 'percent', 'lradj']:
         setattr(args, key, getattr(dataset_config, key))
-    
     if args.freq == 0:
         args.freq = 'h'
 
@@ -150,147 +139,70 @@ def _combine_datasets(datasets):
 
 
 parser = argparse.ArgumentParser(description='TEMPO')
-
- 
 ## General Arguments
-
 parser.add_argument('--model_id', type=str, default='tempo_etth1_multi-debug') # Specifies a unique identifier for the model instance being trained
-
 parser.add_argument('--checkpoints', type=str, default='checkpoints/') # Directory path where model checkpoints are saved
-
 parser.add_argument('--task_name', type=str, default='long_term_forecast') # Defines the type of task, e.g., classification/anomaly_detection/ long_term_forecast/imputation/ short_term_forecasting
-
- 
-
- 
-
 parser.add_argument('--prompt', type=int, default=0) # Indicates whether prompt-based training is used (0 = No, 1 = Yes).
-
 parser.add_argument('--num_nodes', type=int, default=1) # Number of features but always set to 1 ????
-
- 
-
 ## Sequence and Label Settings
-
 parser.add_argument('--seq_len', type=int, default=512) # Length of the input sequence to the model.
-
 parser.add_argument('--pred_len', type=int, default=96) # Number of steps to predict in the output sequence (horizon)
-
 parser.add_argument('--label_len', type=int, default=48) #  Length of the label sequence used in the training phase to calculate the loss.
-
- 
 ## Optimization Settings
-
 parser.add_argument('--decay_fac', type=float, default=0.9) # Factor by which learning rate decays during training.
-
 parser.add_argument('--learning_rate', type=float, default=0.001) # Initial learning rate for training.
-
 parser.add_argument('--batch_size', type=int, default=128) # Batch size for training.
-
 parser.add_argument('--num_workers', type=int, default=0) # Number of worker threads for data loading.
-
 parser.add_argument('--train_epochs', type=int, default=10) # Number of training epochs.
-
 parser.add_argument('--lradj', type=str, default='type3') # Learning rate adjustment strategy
-
 parser.add_argument('--patience', type=int, default=5)
-
- 
 ## Model and Architecture Settings
-
 parser.add_argument('--gpt_layers', type=int, default=6) # Number of layers in the GPT
-
 parser.add_argument('--is_gpt', type=int, default=1) # Flag to indicate whether GPT-style modeling is used (1 = Yes, 0 = No).
-
 parser.add_argument('--e_layers', type=int, default=3) # Number of encoder layers in the model.
-
 parser.add_argument('--d_model', type=int, default=768) # Dimensionality of model embeddings.
-
 parser.add_argument('--n_heads', type=int, default=4) # Number of (attention?) heads in the model.
-
 parser.add_argument('--d_ff', type=int, default=768) # Dimensionality of the feed-forward network in the transformer layers.
-
 parser.add_argument('--dropout', type=float, default=0.3) # Dropout rate used in the model to prevent overfitting.
-
 parser.add_argument('--enc_in', type=int, default=7) # Number of input features for the encoder.
-
 parser.add_argument('--c_out', type=int, default=7) # Number of output channels/features.
-
 parser.add_argument('--patch_size', type=int, default=16) # Size of the patches for patch-based learning.
-
 parser.add_argument('--kernel_size', type=int, default=25) # In TEMPO - define the size of the window over which the moving average is computed
-
- 
 ## Loss and Training Strategy
-
 parser.add_argument('--loss_func', type=str, default='mse') # Loss function used during training
-
 parser.add_argument('--pretrain', type=int, default=1) # Flag to indicate whether to load or not the pre-trained model(GPT2) (1 = Yes, 0 = No).
-
 parser.add_argument('--freeze', type=int, default=1) # Flag to freeze specific model components during fine-tuning (1 = Yes, 0 = No).
-
 parser.add_argument('--model', type=str, default='TEMPO') 
-
 parser.add_argument('--stride', type=int, default=8) # Specifies the number of steps the window moves after each operation
-
 parser.add_argument('--max_len', type=int, default=-1) # Maximum sequence length; -1 indicates no limit.
-
 parser.add_argument('--hid_dim', type=int, default=16) # Hidden dimension size for specific layers.
-
 parser.add_argument('--tmax', type=int, default=10) # The number of epochs or steps over which the learning rate will decrease from its initial value to the minimum (eta_min)
-
- 
-
 parser.add_argument('--itr', type=int, default=3) # Number of iterations for a particular forward pass of the model
-
 parser.add_argument('--cos', type=int, default=0) #  When cos is set to 1, cosine annealing will control the learning rate decay
-
 parser.add_argument('--equal', type=int, default=1, help='1: equal sampling, 0: dont do the equal sampling')
-
 parser.add_argument('--pool', action='store_true', help='whether use prompt pool')
-
 parser.add_argument('--no_stl_loss', action='store_true', help='whether use Season-Trend Loss')
-
- 
 # Dataset and Configurations
-
 parser.add_argument('--stl_weight', type=float, default=0.01) # Weight of STL (Season-Trend Loss) in the total loss computation
-
 parser.add_argument('--config_path', type=str, default='./configs/multiple_datasets.yml') # Path to the configuration YAML file for multiple datasets
-
 parser.add_argument('--datasets', type=str, default='ETTh1') # Specifies the datasets used for training
-
 parser.add_argument('--target_data', type=str, default='ETTh1') # Indicates the target dataset for forecasting.
-
 #eval_data
-
 parser.add_argument('--eval_data', type=str, default='ETTh1') # Dataset used for evaluation.
-
- 
-
 parser.add_argument('--use_token', type=int, default=0) # If use prompt token's representation as the forecasting's information
-
 parser.add_argument('--electri_multiplier', type=int, default=1) # Multiplier for electric data scaling.
-
 parser.add_argument('--traffic_multiplier', type=int, default=1) # Multiplier for traffic data scaling.
-
 parser.add_argument('--embed', type=str, default='timeF') # Type of embedding used (e.g., timeF for time-frequency embeddings).
-
 parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether vision-based models are used (1 = Yes, 0 = No).
-
 parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
-
 parser.add_argument('--create_offline_vision', type=int, default=0) # Dimensionality of the vision encoder.
-
 
 #args = parser.parse_args([])
 args = parser.parse_args()
 config = get_init_config(args.config_path)
-
 args.itr = 1
-
 print(args)
-
 SEASONALITY_MAP = {
    "minutely": 1440,
    "10_minutes": 144,
@@ -303,23 +215,17 @@ SEASONALITY_MAP = {
    "yearly": 1
 }
 
-
-
-
 mses = []
 maes = []
 for ii in range(args.itr):
-
     setting = '{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_gl{}_df{}_eb{}_itr{}'.format(args.model_id, 336, args.label_len, args.pred_len,
                                                                     args.d_model, args.n_heads, args.e_layers, args.gpt_layers, 
                                                                     args.d_ff, args.embed, ii)
     path = os.path.join(args.checkpoints, setting)
     if not os.path.exists(path):
         os.makedirs(path)
-
     # if args.freq == 0:
     #     args.freq = 'h'
-
     device = torch.device('cuda:0')
     # Load the data
     train_data, train_loader, test_data, test_loader, vali_data, vali_loader = prepare_data_loaders(args, config)
@@ -363,27 +269,30 @@ for ii in range(args.itr):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(model_optim, T_max=args.tmax, eta_min=1e-8)
 
     for epoch in range(args.train_epochs):
-
         iter_count = 0
         train_loss = []
         epoch_time = time.time()
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader),total = len(train_loader)):
-
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed) in tqdm(enumerate(train_loader),total = len(train_loader)):
             iter_count += 1
             model_optim.zero_grad()
             batch_x = batch_x.float().to(device)
-
             batch_y = batch_y.float().to(device)
             batch_x_mark = batch_x_mark.float().to(device)
             batch_y_mark = batch_y_mark.float().to(device)
-
             seq_trend = seq_trend.float().to(device)
             seq_seasonal = seq_seasonal.float().to(device)
             seq_resid = seq_resid.float().to(device)
 
+            my_trend_vis_embed = my_trend_vis_embed.float().to(device)
+            my_season_vis_embed = my_season_vis_embed.float().to(device)
+            my_noise_vis_embed = my_noise_vis_embed.float().to(device)
             # print(seq_seasonal.shape)
+
             if args.model == 'TEMPO' or 'multi' in args.model:
-                outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)
+                if args.vision == 1:
+                    outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid, test, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed) 
+                else:
+                    outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)
             elif 'former' in args.model:
                 dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
@@ -412,6 +321,9 @@ for ii in range(args.itr):
         print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
 
         train_loss = np.average(train_loss)
+        # if args.vision == 1:
+        #     vali_loss = vali_vis(model, vali_data, vali_loader, criterion, args, device, ii)
+        # else:
         vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
        
         print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f}".format(

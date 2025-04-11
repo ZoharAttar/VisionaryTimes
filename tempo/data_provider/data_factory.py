@@ -35,9 +35,10 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
     else:
         if args.create_offline_vision == 1:
             shuffle_flag = False
+            drop_last = False
         else:
             shuffle_flag = True
-        drop_last = True
+            drop_last = True
         batch_size = args.batch_size
         freq = args.freq
 
