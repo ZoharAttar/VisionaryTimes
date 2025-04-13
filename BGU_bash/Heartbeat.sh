@@ -3,6 +3,7 @@
   --config_path ./configs/multiple_datasets.yml \
   --datasets Heartbeat\
   --num_classes 2 \
+  --seq_len 405 \
   --pred_len 0 \
   # --is_training 1 \
   # --root_path ./dataset/Heartbeat/ \

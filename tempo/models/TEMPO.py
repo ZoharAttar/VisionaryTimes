@@ -20,7 +20,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-criterion = nn.MSELoss()
+criterion = nn.MSELoss() 
 
 class ComplexLinear(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -560,7 +560,7 @@ class TEMPO(nn.Module):
         # Calculate noise
         noise_local = x - trend_local - season_local
         
-        if trend is not None:
+        if trend is not None and self.task_name != 'classification':
             trend, means_trend, stdev_trend = self.get_norm(trend)
             season, means_season, stdev_season = self.get_norm(season)
             noise, means_noise, stdev_noise = self.get_norm(noise)
@@ -660,12 +660,10 @@ class TEMPO(nn.Module):
         
         if self.task_name == 'classification':
             x_all = torch.cat((trend, season, noise), dim=1)
-            print(x_all.shape)
             # through the classification head
             x_all = x_all.mean(dim=1)  # Global average pooling
-            print(x_all.shape)
             outputs = self.classification_head(x_all)
-            return outputs, loss_local if trend is not None else None
+            return outputs
             
         trend = self.out_layer_trend(trend.reshape(B*M, -1)) # 4, 96
         trend = rearrange(trend, '(b m) l -> b l m', b=B) # 4, 96, 1
@@ -705,6 +703,7 @@ class TEMPO(nn.Module):
         
         if test:
             return outputs, None
+        
         return outputs, loss_local
 
     def predict(self, x, pred_length=96):

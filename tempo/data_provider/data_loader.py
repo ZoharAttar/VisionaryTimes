@@ -1254,7 +1254,7 @@ class UEAloader(Dataset):
         self.flag = flag
         self.all_df, self.labels_df = self.load_all(root_path, file_list=file_list, flag=flag)
         self.all_IDs = self.all_df.index.unique()  # all sample IDs (integer indices 0 ... num_samples-1)
-
+        
         if limit_size is not None:
             if limit_size > 1:
                 limit_size = int(limit_size)
@@ -1282,22 +1282,30 @@ class UEAloader(Dataset):
         # Load data
         df, labels = self.feature_df, self.labels_df
 
+        # Generate label map dynamically (unique classes)
+        label_map = {label: idx for idx, label in enumerate(set(labels))}
+        y = np.array([label_map[label] for label in labels])
+        labels = y
+
         # Parse each time series string into a list of floats
         parsed_df = df.applymap(parse_series)
 
         # Convert DataFrame to 3D numpy array: [n_samples, n_channels, time_length]
         X = np.array([np.stack(row.values) for _, row in parsed_df.iterrows()])
+        X = X[:2]
 
         # Initialize an empty list to store the processed results
         x = []
         x_trend, x_seasonal, x_resid = [], [], []
         y = []
         samples_ids = []
-
+        print("X length: ",len(X))
+        m=0
         for i, sample in enumerate(X):
-            
+            print("sample len: ",len(sample))
             # Loop through each time series in the sample (axis 1 - n_channels)
             for series in sample:
+                
                 series = normalizer.normalize(series)
 
                 # Apply the function to the series
@@ -1308,7 +1316,11 @@ class UEAloader(Dataset):
                 x_resid.append(res.resid)
                 y.append(labels[i])
                 samples_ids.append(i)
-        
+                m+=1
+
+                if m % 10 == 0:
+                    print(i, m)
+        print("finish loop")
         self.x = np.array(x)
         self.x_trend = np.array(x_trend)
         self.x_seasonal = np.array(x_seasonal)

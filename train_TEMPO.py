@@ -397,12 +397,18 @@ for ii in range(args.itr):
 
         if args.task_name == 'classification':
             for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader), total=len(train_loader)):
+                batch_x = batch_x.unsqueeze(-1)
                 iter_count += 1
                 model_optim.zero_grad()
                 
                 batch_x = batch_x.float().to(device)
-                label = label.to(device)
+                print("label:", label)
+                label = label.float().to(device)
 
+                seq_trend = seq_trend.float().to(device)
+                seq_seasonal = seq_seasonal.float().to(device)
+                seq_resid = seq_resid.float().to(device)
+                
                 outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
                 loss = criterion(outputs, label.long().squeeze(-1))
                 train_loss.append(loss.item())

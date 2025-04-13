@@ -612,12 +612,16 @@ def vali_classification(model, vali_data, vali_loader, criterion, args, device):
     trues = []
     model.eval()
     with torch.no_grad():
-        for i, (batch_x, label, padding_mask) in enumerate(vali_loader):
+        for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(vali_loader), total=len(vali_loader)):
+            batch_x = batch_x.unsqueeze(-1)
             batch_x = batch_x.float().to(device)
-            padding_mask = padding_mask.float().to(device)
-            label = label.to(device)
+            label = label.float().to(device)
 
-            outputs = model(batch_x, padding_mask, None, None)
+            seq_trend = seq_trend.float().to(device)
+            seq_seasonal = seq_seasonal.float().to(device)
+            seq_resid = seq_resid.float().to(device)
+
+            outputs = model(batch_x, None, seq_trend, seq_seasonal, seq_resid)
             pred = outputs.detach().cpu()
             loss = criterion(pred, label.long().squeeze().cpu())
             total_loss.append(loss)
