@@ -12,7 +12,7 @@
   --model TEMPO \
   --data UEA \
   --e_layers 3 \
-  --batch_size 16 \
+  --batch_size 1 \
   --d_model 128 \
   --d_ff 256 \
   # --top_k 3 \

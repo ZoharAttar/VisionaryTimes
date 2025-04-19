@@ -1265,8 +1265,10 @@ class UEAloader(Dataset):
 
         # use all features
         self.feature_names = self.all_df.columns
+        self.num_features = len(self.feature_names)
         self.feature_df = self.all_df
-
+        
+        from time import time
         # pre_process
         normalizer = Normalizer()
   
@@ -1289,38 +1291,75 @@ class UEAloader(Dataset):
 
         # Parse each time series string into a list of floats
         parsed_df = df.applymap(parse_series)
-
-        # Convert DataFrame to 3D numpy array: [n_samples, n_channels, time_length]
         X = np.array([np.stack(row.values) for _, row in parsed_df.iterrows()])
-        X = X[:2]
+        X = X[:5]
+        # # Initialize an empty list to store the processed results
+        # x = []
+        # x_trend, x_seasonal, x_resid = [], [], []
+        # y = []
+        # samples_ids = []
+        # print("X length: ",len(X))
+        # m=0
+        # start = time()
+        # for i, sample in enumerate(X):
+        #     print("sample len: ",len(sample))
+        #     # Loop through each time series in the sample (axis 1 - n_channels)
+        #     for series in sample:
+                
+        #         series = normalizer.normalize(series)
+
+        #         # Apply the function to the series
+        #         x.append(series)
+        #         res = STL(series, period=404).fit() #period is number of timestamps
+        #         x_trend.append(res.trend)
+        #         x_seasonal.append(res.seasonal)
+        #         x_resid.append(res.resid)
+        #         y.append(labels[i])
+        #         samples_ids.append(i)
+        #         m+=1
+
+        #         if m % 10 == 0:
+        #             print(i, m)
+        #     end = time()
+        #     print("Time taken for sample {}: {:.2f} seconds".format(i, end - start))
+
+        from joblib import Parallel, delayed
+        from time import time
+
+        def decompose_series(series):
+            series = normalizer.normalize(series)  # You can also store normalized series if needed
+            res = STL(series, period=404).fit()
+            return series, res.trend, res.seasonal, res.resid
 
         # Initialize an empty list to store the processed results
-        x = []
-        x_trend, x_seasonal, x_resid = [], [], []
-        y = []
-        samples_ids = []
-        print("X length: ",len(X))
-        m=0
-        for i, sample in enumerate(X):
-            print("sample len: ",len(sample))
-            # Loop through each time series in the sample (axis 1 - n_channels)
-            for series in sample:
-                
-                series = normalizer.normalize(series)
+        x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
 
-                # Apply the function to the series
+        print("X length: ", len(X))
+        m = 0
+        start = time()
+        for i, sample in enumerate(X):
+            print("sample len: ", len(sample))
+
+            # Run STL decomposition on all series in the sample in parallel
+            decomposed = Parallel(n_jobs=-1)(delayed(decompose_series)(s) for s in sample)
+
+            for series, trend, seasonal, resid in decomposed:
                 x.append(series)
-                res = STL(series, period=404).fit() #period is number of timestamps
-                x_trend.append(res.trend)
-                x_seasonal.append(res.seasonal)
-                x_resid.append(res.resid)
+                x_trend.append(trend)
+                x_seasonal.append(seasonal)
+                x_resid.append(resid)
                 y.append(labels[i])
                 samples_ids.append(i)
-                m+=1
-
+                m += 1
+                
                 if m % 10 == 0:
                     print(i, m)
-        print("finish loop")
+            end = time()
+            print("Time taken for sample {}: {:.2f} seconds".format(i, end - start))
+            start = 0
+            end = 0
+
+        print("Finished loop")
         self.x = np.array(x)
         self.x_trend = np.array(x_trend)
         self.x_seasonal = np.array(x_seasonal)

@@ -82,7 +82,7 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
         data_loader = DataLoader(
             data_set,
             batch_size=batch_size,
-            shuffle=shuffle_flag,
+            shuffle=False,
             num_workers=args.num_workers,
             drop_last=drop_last
             # collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
