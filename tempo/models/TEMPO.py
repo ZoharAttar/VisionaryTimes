@@ -546,7 +546,24 @@ class TEMPO(nn.Module):
 
     
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
-        B, L, M = x.shape # 4, 512, 1
+
+        if self.task_name == 'classification':
+            # x.shape = [2, 61, 405, 1] == > [batch size, num of features(cells in a row), points in the time series(in each cell), channel independence???]
+            B, num_cells, L, M = x.shape
+            x= x.reshape(B*num_cells, L) # converting [2, 61, 405, 1] to [122, 405, 1] because the model receives channel independence data
+            x = x.unsqueeze(2) # removing the last dimension [122, 405, 1] ==> [122, 405]
+            if trend is not None:
+                trend = trend.reshape(B*num_cells, L)
+                trend = trend.unsqueeze(2)
+            if season is not None:
+                season = season.reshape(B*num_cells, L)
+                season = season.unsqueeze(2)
+            if noise is not None:
+                noise = noise.reshape(B*num_cells, L)
+                noise = noise.unsqueeze(2)
+        else:
+            B, L, M = x.shape # 4, 512, 1
+
         x = self.rev_in_trend(x, 'norm')
         original_x = x
         # Moving average for trend
@@ -659,10 +676,17 @@ class TEMPO(nn.Module):
 
         
         if self.task_name == 'classification':
-            x_all = torch.cat((trend, season, noise), dim=1)
-            # through the classification head
-            x_all = x_all.mean(dim=1)  # Global average pooling
-            outputs = self.classification_head(x_all)
+            
+            x_all = torch.cat((trend, season, noise), dim=1) 
+            #[122, 150, 768] 
+            x_all = x_all.reshape(B, num_cells, *x_all.shape[1:]) #return to [samples(rows = #cells * #features), features, tokens, d_model] (each row has 61 cells made of vectors of shape[150,768]) 
+            #[2, 61, 150, 768] 
+            x_all = x_all.mean(dim=2) #convert the cell vector representaion to shape of [768] using mean
+            #[2, 61, 768]
+            x_all = x_all.mean(dim=1) #aggregate cells for each row using mean to to have a classification for each row(sample)
+            #[2, 768]
+            outputs = self.classification_head(x_all) #classification for each row(sample)
+            #[2, 2]
             return outputs
             
         trend = self.out_layer_trend(trend.reshape(B*M, -1)) # 4, 96

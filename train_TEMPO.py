@@ -86,7 +86,7 @@ def prepare_data_loaders(args, config):
         test_data, test_loader = data_provider(args, 'TEST')
         
         # For classification, we use the same test set for validation
-        val_data, val_loader = data_provider(args, 'VAL')
+        val_data, val_loader = test_data, test_loader
     
     else:
         # Existing forecasting code
@@ -203,7 +203,7 @@ parser.add_argument('--decay_fac', type=float, default=0.9) # Factor by which le
 
 parser.add_argument('--learning_rate', type=float, default=0.001) # Initial learning rate for training.
 
-parser.add_argument('--batch_size', type=int, default=1) # Batch size for training.
+parser.add_argument('--batch_size', type=int, default=2) # Batch size for training.
 
 parser.add_argument('--num_workers', type=int, default=0) # Number of worker threads for data loading.
 
@@ -395,40 +395,35 @@ for ii in range(args.itr):
         train_loss = []
         epoch_time = time.time()
 
-        if args.task_name == 'classification':
-            num_features = train_data.num_features
-            row_outputs = []
+        if args.task_name == 'classification': 
+            # each item in the train loader is a row and not a cell in the dataset, the loss is calculated for each row
             for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader), total=len(train_loader)):
-                
+
                 batch_x = batch_x.unsqueeze(-1)
                 iter_count += 1
                 model_optim.zero_grad()
                 
-                batch_x = batch_x.float().to(device)
-                label = label.float().to(device)
+                batch_x = batch_x.float().to(device) 
+                label = label.float().to(device) # there is a label for each row
 
                 seq_trend = seq_trend.float().to(device)
                 seq_seasonal = seq_seasonal.float().to(device)
                 seq_resid = seq_resid.float().to(device)
                 
                 outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
-                row_outputs.append(outputs)
-                if (i+1) % num_features == 0: # compute loss only when finish a row
-                    avg_outputs = torch.mean(torch.stack(row_outputs), dim=0)
-                    loss = criterion(avg_outputs, label.long())
-                    row_outputs = []
-                    train_loss.append(loss.item())
+                loss = criterion(outputs, label.long()) # outpus is [batch size, num classes], label is [batch size] (the label for each sample)
+                train_loss.append(loss.item())
 
-                    if (i + 1) % num_features == 0:
-                        print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
-                        speed = (time.time() - time_now) / iter_count
-                        left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
-                        print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
-                        iter_count = 0
-                        time_now = time.time()
-                
-                    loss.backward()
-                    model_optim.step()
+                if (i + 1) % 1000 == 0:
+                    print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
+                    speed = (time.time() - time_now) / iter_count
+                    left_time = speed * ((args.train_epochs - epoch) * train_steps - i)
+                    print('\tspeed: {:.4f}s/iter; left time: {:.4f}s'.format(speed, left_time))
+                    iter_count = 0
+                    time_now = time.time()
+            
+                loss.backward()
+                model_optim.step()
         else:
             # Existing forecasting training loop
             for i, (batch_x, batch_y, batch_x_mark, batch_y_mark, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader),total = len(train_loader)):

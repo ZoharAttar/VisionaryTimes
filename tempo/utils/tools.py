@@ -612,8 +612,6 @@ def vali_classification(model, vali_data, vali_loader, criterion, args, device):
     trues = []
     model.eval()
     with torch.no_grad():
-        row_outputs = []
-        num_features = vali_data.num_features
         for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(vali_loader), total=len(vali_loader)):
             batch_x = batch_x.unsqueeze(-1)
             batch_x = batch_x.float().to(device)
@@ -625,16 +623,11 @@ def vali_classification(model, vali_data, vali_loader, criterion, args, device):
 
             outputs = model(batch_x, None, seq_trend, seq_seasonal, seq_resid)
             pred = outputs.detach().cpu()
-            row_outputs.append(pred)
-            if (i+1) % num_features == 0:
-                avg_outputs = torch.mean(torch.stack(row_outputs), dim=0)
-                loss = criterion(avg_outputs, label.long().cpu())
-                print('val loss:', loss)
-                row_outputs = []
-                total_loss.append(loss)
+            loss = criterion(pred, label.long().cpu())
+            total_loss.append(loss)
 
-                preds.append(outputs.detach())
-                trues.append(label)
+            preds.append(outputs.detach())
+            trues.append(label)
 
     total_loss = np.average(total_loss)
 

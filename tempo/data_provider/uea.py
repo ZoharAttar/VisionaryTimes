@@ -119,7 +119,7 @@ class Normalizer(object):
         Returns:
             df: normalized dataframe
         """
-        if self.norm_type == "standardization":
+        if self.norm_type == "standardization": 
             if self.mean is None:
                 self.mean = df.mean()
                 self.std = df.std()

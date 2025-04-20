@@ -16,6 +16,8 @@ import re
 from tempo.data_provider.uea import subsample, interpolate_missing, Normalizer
 from sktime.datasets import load_from_tsfile_to_dataframe
 from tempo.utils.augmentation import run_augmentation_single
+from joblib import Parallel, delayed
+
 
 warnings.filterwarnings('ignore')
 
@@ -1079,12 +1081,6 @@ class UEAloaderOriginal(Dataset):
                 os.path.join(self.root_path, f"{self.data_name}_TRAIN.ts"),
                 return_separate_X_and_y=True
             )
-            print("X columns:")
-            print(X.columns)
-            print("X:")
-            print(X)
-            print("y:")
-            print(y)
 
             n_samples = len(X)
             n_channels = X.iloc[0].shape[0]
@@ -1268,11 +1264,6 @@ class UEAloader(Dataset):
         self.num_features = len(self.feature_names)
         self.feature_df = self.all_df
         
-        from time import time
-        # pre_process
-        normalizer = Normalizer()
-  
-        
         def parse_series(cell):
             """Convert a pandas Series containing numpy.float64 to a list of floats"""
             if isinstance(cell, pd.Series):  # Ensure the cell is a pandas Series
@@ -1280,66 +1271,37 @@ class UEAloader(Dataset):
             else:
                 return []  # Return an empty list or handle differently if needed
 
-
-        # Load data
         df, labels = self.feature_df, self.labels_df
 
         # Generate label map dynamically (unique classes)
         label_map = {label: idx for idx, label in enumerate(set(labels))}
         y = np.array([label_map[label] for label in labels])
         labels = y
-
+        
         # Parse each time series string into a list of floats
         parsed_df = df.applymap(parse_series)
+
+        # Flatten the data to compute global statistics
+        # Convert the entire DataFrame into a 1D array of all time series values
+        all_values = np.concatenate(parsed_df.values)
+        print("all_values.shape = {}".format(all_values.shape))
+
+        # Compute global mean and std across all values
+        self.global_mean = np.mean(all_values)
+        self.global_std = np.std(all_values)
+
         X = np.array([np.stack(row.values) for _, row in parsed_df.iterrows()])
         X = X[:5]
-        # # Initialize an empty list to store the processed results
-        # x = []
-        # x_trend, x_seasonal, x_resid = [], [], []
-        # y = []
-        # samples_ids = []
-        # print("X length: ",len(X))
-        # m=0
-        # start = time()
-        # for i, sample in enumerate(X):
-        #     print("sample len: ",len(sample))
-        #     # Loop through each time series in the sample (axis 1 - n_channels)
-        #     for series in sample:
-                
-        #         series = normalizer.normalize(series)
-
-        #         # Apply the function to the series
-        #         x.append(series)
-        #         res = STL(series, period=404).fit() #period is number of timestamps
-        #         x_trend.append(res.trend)
-        #         x_seasonal.append(res.seasonal)
-        #         x_resid.append(res.resid)
-        #         y.append(labels[i])
-        #         samples_ids.append(i)
-        #         m+=1
-
-        #         if m % 10 == 0:
-        #             print(i, m)
-        #     end = time()
-        #     print("Time taken for sample {}: {:.2f} seconds".format(i, end - start))
-
-        from joblib import Parallel, delayed
-        from time import time
 
         def decompose_series(series):
-            series = normalizer.normalize(series)  # You can also store normalized series if needed
+            series = (series - self.global_mean) / (self.global_std + 1e-8)
             res = STL(series, period=404).fit()
             return series, res.trend, res.seasonal, res.resid
-
+            
         # Initialize an empty list to store the processed results
         x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
 
-        print("X length: ", len(X))
-        m = 0
-        start = time()
         for i, sample in enumerate(X):
-            print("sample len: ", len(sample))
-
             # Run STL decomposition on all series in the sample in parallel
             decomposed = Parallel(n_jobs=-1)(delayed(decompose_series)(s) for s in sample)
 
@@ -1350,34 +1312,45 @@ class UEAloader(Dataset):
                 x_resid.append(resid)
                 y.append(labels[i])
                 samples_ids.append(i)
-                m += 1
-                
-                if m % 10 == 0:
-                    print(i, m)
-            end = time()
-            print("Time taken for sample {}: {:.2f} seconds".format(i, end - start))
-            start = 0
-            end = 0
 
-        print("Finished loop")
         self.x = np.array(x)
         self.x_trend = np.array(x_trend)
         self.x_seasonal = np.array(x_seasonal)
         self.x_resid = np.array(x_resid)
         self.y = np.array(y)
         self.samples_ids = np.array(samples_ids)
+        self.unique_sampels_ids = np.unique(self.samples_ids)
+        self.samples = {}
+        for sample_id in self.unique_sampels_ids:
+            indices = np.where(self.samples_ids == sample_id)[0]
+            self.samples[sample_id] = indices
+            
     
+    # def __len__(self):
+    #     return self.x.shape[0]
+
     def __len__(self):
-        return self.x.shape[0]
+        return len(self.unique_sampels_ids)
+
+    # def __getitem__(self, index):
+    #     x = self.x[index]
+    #     x_trend = self.x_trend[index]
+    #     x_seasonal = self.x_seasonal[index]
+    #     x_resid = self.x_resid[index]
+    #     y = self.y[index]
+
+    #     return x, y, x_trend, x_seasonal, x_resid   
 
     def __getitem__(self, index):
-        x = self.x[index]
-        x_trend = self.x_trend[index]
-        x_seasonal = self.x_seasonal[index]
-        x_resid = self.x_resid[index]
-        y = self.y[index]
+        sample_id = self.unique_sampels_ids[index]
+        indices = self.samples[sample_id]
+        x = self.x[indices]
+        x_trend = self.x_trend[indices]
+        x_seasonal = self.x_seasonal[indices]
+        x_resid = self.x_resid[indices]
+        y = self.y[indices[0]]
 
-        return x, y, x_trend, x_seasonal, x_resid   
+        return x, y, x_trend, x_seasonal, x_resid
 
     def load_all(self, root_path, file_list=None, flag=None):
         """

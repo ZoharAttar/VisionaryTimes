@@ -56,7 +56,7 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
             train_all=train_all,
             data_name = args.data_name
         )
-        # print(flag, len(data_set))
+        
         data_loader = DataLoader(
             data_set,
             batch_size=batch_size,
@@ -67,11 +67,9 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
 
     else: # classification
         shuffle_flag = False if (flag == 'test' or flag == 'TEST') else True
-        drop_last = False
+        drop_last = False if (flag == 'test' or flag == 'TEST') else True
         batch_size = args.batch_size
         freq = args.freq
-
-        print("args:  ",args)
 
         data_set = Data(
             args = args,
@@ -82,7 +80,7 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
         data_loader = DataLoader(
             data_set,
             batch_size=batch_size,
-            shuffle=False,
+            shuffle=shuffle_flag,
             num_workers=args.num_workers,
             drop_last=drop_last
             # collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
