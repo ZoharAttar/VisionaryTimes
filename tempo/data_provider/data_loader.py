@@ -1264,54 +1264,28 @@ class UEAloader(Dataset):
         self.num_features = len(self.feature_names)
         self.feature_df = self.all_df
         
-        def parse_series(cell):
-            """Convert a pandas Series containing numpy.float64 to a list of floats"""
-            if isinstance(cell, pd.Series):  # Ensure the cell is a pandas Series
-                return cell.tolist()  # Convert the Series to a list of floats
-            else:
-                return []  # Return an empty list or handle differently if needed
-
         df, labels = self.feature_df, self.labels_df
 
-        # Generate label map dynamically (unique classes)
-        label_map = {label: idx for idx, label in enumerate(set(labels))}
-        y = np.array([label_map[label] for label in labels])
-        labels = y
-        
-        # Parse each time series string into a list of floats
-        parsed_df = df.applymap(parse_series)
+        normalizer = Normalizer()
+        df = normalizer.normalize(df)
 
-        # Flatten the data to compute global statistics
-        # Convert the entire DataFrame into a 1D array of all time series values
-        all_values = np.concatenate(parsed_df.values)
-        print("all_values.shape = {}".format(all_values.shape))
-
-        # Compute global mean and std across all values
-        self.global_mean = np.mean(all_values)
-        self.global_std = np.std(all_values)
-
-        X = np.array([np.stack(row.values) for _, row in parsed_df.iterrows()])
-        X = X[:5]
-
-        def decompose_series(series):
-            series = (series - self.global_mean) / (self.global_std + 1e-8)
-            res = STL(series, period=404).fit()
-            return series, res.trend, res.seasonal, res.resid
-            
-        # Initialize an empty list to store the processed results
         x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
 
-        for i, sample in enumerate(X):
-            # Run STL decomposition on all series in the sample in parallel
-            decomposed = Parallel(n_jobs=-1)(delayed(decompose_series)(s) for s in sample)
-
-            for series, trend, seasonal, resid in decomposed:
+        for i in range(len(labels)):
+            for col in df.columns:
+                # Get the series corresponding to the current row and column
+                temp = df.loc[i][col]
+                series = np.array(df.loc[i][col])  # This grabs all values with index i from column col
+                result = STL(series, period=404).fit()
+                trend, seasonal, resid = result.trend, result.seasonal, result.resid
+                
                 x.append(series)
                 x_trend.append(trend)
                 x_seasonal.append(seasonal)
                 x_resid.append(resid)
-                y.append(labels[i])
+                y.append(labels.iloc[i][0])
                 samples_ids.append(i)
+
 
         self.x = np.array(x)
         self.x_trend = np.array(x_trend)
@@ -1324,22 +1298,9 @@ class UEAloader(Dataset):
         for sample_id in self.unique_sampels_ids:
             indices = np.where(self.samples_ids == sample_id)[0]
             self.samples[sample_id] = indices
-            
-    
-    # def __len__(self):
-    #     return self.x.shape[0]
 
     def __len__(self):
-        return len(self.unique_sampels_ids)
-
-    # def __getitem__(self, index):
-    #     x = self.x[index]
-    #     x_trend = self.x_trend[index]
-    #     x_seasonal = self.x_seasonal[index]
-    #     x_resid = self.x_resid[index]
-    #     y = self.y[index]
-
-    #     return x, y, x_trend, x_seasonal, x_resid   
+        return len(self.unique_sampels_ids) 
 
     def __getitem__(self, index):
         sample_id = self.unique_sampels_ids[index]
@@ -1381,10 +1342,46 @@ class UEAloader(Dataset):
 
         return all_df, labels_df
 
+    # def load_single(self, filepath):
+    #     df, labels = load_from_tsfile_to_dataframe(filepath, return_separate_X_and_y=True,
+    #                                                          replace_missing_vals_with='NaN')
+    #     return df, labels 
+
     def load_single(self, filepath):
         df, labels = load_from_tsfile_to_dataframe(filepath, return_separate_X_and_y=True,
                                                              replace_missing_vals_with='NaN')
-        return df, labels 
+        labels = pd.Series(labels, dtype="category")
+        self.class_names = labels.cat.categories
+        labels_df = pd.DataFrame(labels.cat.codes,
+                                 dtype=np.int8)  # int8-32 gives an error when using nn.CrossEntropyLoss
+
+        lengths = df.applymap(
+            lambda x: len(x)).values  # (num_samples, num_dimensions) array containing the length of each series
+
+        horiz_diffs = np.abs(lengths - np.expand_dims(lengths[:, 0], -1))
+
+        if np.sum(horiz_diffs) > 0:  # if any row (sample) has varying length across dimensions
+            df = df.applymap(subsample)
+
+        lengths = df.applymap(lambda x: len(x)).values
+        vert_diffs = np.abs(lengths - np.expand_dims(lengths[0, :], 0))
+        if np.sum(vert_diffs) > 0:  # if any column (dimension) has varying length across samples
+            self.max_seq_len = int(np.max(lengths[:, 0]))
+        else:
+            self.max_seq_len = lengths[0, 0]
+
+        # First create a (seq_len, feat_dim) dataframe for each sample, indexed by a single integer ("ID" of the sample)
+        # Then concatenate into a (num_samples * seq_len, feat_dim) dataframe, with multiple rows corresponding to the
+        # sample index (i.e. the same scheme as all datasets in this project)
+
+        df = pd.concat((pd.DataFrame({col: df.loc[row, col] for col in df.columns}).reset_index(drop=True).set_index(
+            pd.Series(lengths[row, 0] * [row])) for row in range(df.shape[0])), axis=0)
+
+        # Replace NaN values
+        grp = df.groupby(by=df.index)
+        df = grp.transform(interpolate_missing)
+
+        return df, labels_df
 
 
         

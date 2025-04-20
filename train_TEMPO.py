@@ -86,7 +86,7 @@ def prepare_data_loaders(args, config):
         test_data, test_loader = data_provider(args, 'TEST')
         
         # For classification, we use the same test set for validation
-        val_data, val_loader = test_data, test_loader
+        val_data, val_loader = train_data, train_loader
     
     else:
         # Existing forecasting code
@@ -398,7 +398,6 @@ for ii in range(args.itr):
         if args.task_name == 'classification': 
             # each item in the train loader is a row and not a cell in the dataset, the loss is calculated for each row
             for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader), total=len(train_loader)):
-
                 batch_x = batch_x.unsqueeze(-1)
                 iter_count += 1
                 model_optim.zero_grad()
