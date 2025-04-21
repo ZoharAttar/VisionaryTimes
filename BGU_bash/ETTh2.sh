@@ -12,7 +12,7 @@
 # 
 # export CUDA_VISIBLE_DEVICES=2
 
-seq_len=336
+seq_len=512
 model=TEMPO #TEMPO #PatchTST #_multi
 electri_multiplier=1
 traffic_multiplier=1
@@ -40,7 +40,7 @@ echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equ
 
 
 python train_TEMPO.py \
-    --datasets ETTh2 \
+    --datasets ETTh1 \
     --target_data ETTh2 \
     --eval_data ETTh2\
     --config_path ./configs/multiple_datasets.yml \
@@ -67,7 +67,7 @@ python train_TEMPO.py \
     --patch_size 16 \
     --stride 8 \
     --vis_encoder_dim 512 \
-    --vision 0 \
+    --vision 1 \
     --gpt_layer $gpt_layer \
     --itr 3 \
     --model $model \

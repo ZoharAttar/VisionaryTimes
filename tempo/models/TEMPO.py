@@ -491,54 +491,23 @@ class TEMPO(nn.Module):
         ans = torch.stack(images)
         return ans
         
-    # def vision_embed(self, x_local, image, type = 'Trend'):
-    #     # vis_layer_trend
-    #     [a,b,c] = x_local.shape
-    #     if type == 'Trend': 
-    #         with torch.no_grad():
-    #             image_embed_vec = self.vision_encoder.encode_image(image)
-    #         image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
-    #         image_embed_vec = self.vis_layer_trend(image_embed_vec)
-    #         image_embed_vec = image_embed_vec.unsqueeze(1)
-    #         # image_embed_vec = image_embed_vec.repeat(a,1,1)
-    #         # image_embed_vec = self.d_vis_layer_trend(image_embed_vec)
-    #         x_local = torch.cat((image_embed_vec, x_local), dim=1)
-            
-    #     elif type == 'Season': 
-    #         with torch.no_grad():
-    #             image_embed_vec = self.vision_encoder.encode_image(image)
-    #         image_embed_vec = image_embed_vec.to(self.vis_layer_season.weight.dtype)
-    #         image_embed_vec = self.vis_layer_season(image_embed_vec)
-    #         image_embed_vec = image_embed_vec.unsqueeze(1)
-    #         # image_embed_vec = image_embed_vec.repeat(a,1,1)
-    #         # image_embed_vec = self.d_vis_layer_season(image_embed_vec)
-    #         x_local = torch.cat((image_embed_vec, x_local), dim=1)
-            
-    #     elif type == 'Residual': 
-    #         with torch.no_grad():
-    #             image_embed_vec = self.vision_encoder.encode_image(image)
-    #         image_embed_vec = image_embed_vec.to(self.vis_layer_noise.weight.dtype)
-    #         image_embed_vec = self.vis_layer_noise(image_embed_vec)
-    #         image_embed_vec = image_embed_vec.unsqueeze(1)
-    #         # image_embed_vec = image_embed_vec.repeat(a,1,1)
-    #         # image_embed_vec = self.d_vis_layer_noise(image_embed_vec)
-    #         x_local = torch.cat((image_embed_vec, x_local), dim=1)
-        
-    #     return x_local
 
     def vision_embed(self, x_local, vis_embed, type = 'Trend'):
-        
+        # print(x_local.shape, 'x_local')
         if type == 'Trend':
             vis_embed = self.vis_layer_trend(vis_embed)
             vis_embed = vis_embed.squeeze(1)
+            # print(vis_embed.shape, 'vis_embed_trend')
             x_local = torch.cat((vis_embed, x_local), dim=1)
         if type == 'Season':
             vis_embed = self.vis_layer_season(vis_embed)
             vis_embed = vis_embed.squeeze(1)
+            # print(vis_embed.shape, 'vis_embed_season')
             x_local = torch.cat((vis_embed, x_local), dim=1)
         if type == 'Residual':
             vis_embed = self.vis_layer_noise(vis_embed)
             vis_embed = vis_embed.squeeze(1)
+            # print(vis_embed.shape, 'vis_embed_noise')
             x_local = torch.cat((vis_embed, x_local), dim=1)
         
         return x_local
@@ -570,9 +539,10 @@ class TEMPO(nn.Module):
             loss_local = trend_local_l + season_local_l + noise_local_l 
             #import ipdb; ipdb.set_trace()
             if test:
-                print("trend local loss:", torch.mean(trend_local_l))
-                print("Season local loss", torch.mean(season_local_l))
-                print("noise local loss", torch.mean(noise_local_l))
+                if self.vision == 0:
+                    print("trend local loss:", torch.mean(trend_local_l))
+                    print("Season local loss", torch.mean(season_local_l))
+                    print("noise local loss", torch.mean(noise_local_l))
 
         trend = self.get_patch(trend_local) # 4, 64, 16
         season = self.get_patch(season_local)

@@ -352,7 +352,16 @@ def vali(model, vali_data, vali_loader, criterion, args, device, itr):
                 seq_trend = seq_trend.float().to(device)
                 seq_seasonal = seq_seasonal.float().to(device)
                 seq_resid = seq_resid.float().to(device)
-                outputs, _ = model(batch_x, itr,  seq_trend, seq_seasonal, seq_resid)
+
+                my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed = data[7], data[8], data[9]
+                my_trend_vis_embed = my_trend_vis_embed.float().to(device)
+                my_season_vis_embed = my_season_vis_embed.float().to(device)
+                my_noise_vis_embed = my_noise_vis_embed.float().to(device)
+                if args.vision == 1:
+                    # test = False
+                    outputs, _ = model(batch_x, itr,  seq_trend, seq_seasonal, seq_resid, test, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed)
+                else:
+                    outputs, _ = model(batch_x, itr,  seq_trend, seq_seasonal, seq_resid)
             elif 'former' in args.model or args.model == 'FEDformer' or args.model == 'TimesNet' or args.model == 'LightTS':
                 dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
@@ -436,10 +445,18 @@ def test(model, test_data, test_loader, args, device, itr):
             batch_x_mark = batch_x_mark.float().to(device)
             batch_y_mark = batch_y_mark.float().to(device)
 
-            
+            my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed = data[7], data[8], data[9]
+            my_trend_vis_embed = my_trend_vis_embed.float().to(device)
+            my_season_vis_embed = my_season_vis_embed.float().to(device)
+            my_noise_vis_embed = my_noise_vis_embed.float().to(device)
+
             batch_y = batch_y.float()
             if args.model == 'TEMPO' or args.model == 'TEMPO_t5' or 'multi' in args.model:
-                outputs, _ = model(batch_x[:, -args.seq_len:, :], itr,  seq_trend[:, -args.seq_len:, :], seq_seasonal[:, -args.seq_len:, :], seq_resid[:, -args.seq_len:, :])
+                if args.vision == 1:
+                    # test = True
+                    outputs, _ = model(batch_x[:, -args.seq_len:, :], itr,  seq_trend[:, -args.seq_len:, :], seq_seasonal[:, -args.seq_len:, :], seq_resid[:, -args.seq_len:, :], test , my_trend_vis_embed[:, -args.seq_len:, :], my_season_vis_embed[:, -args.seq_len:, :], my_noise_vis_embed[:, -args.seq_len:, :])
+                else:
+                    outputs, _ = model(batch_x[:, -args.seq_len:, :], itr,  seq_trend[:, -args.seq_len:, :], seq_seasonal[:, -args.seq_len:, :], seq_resid[:, -args.seq_len:, :])
             elif 'former' in args.model or args.model == 'FEDformer' or args.model == 'TimesNet' or args.model == 'LightTS':
                 dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
                 dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)

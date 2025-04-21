@@ -290,6 +290,7 @@ for ii in range(args.itr):
 
             if args.model == 'TEMPO' or 'multi' in args.model:
                 if args.vision == 1:
+                    # test = False
                     outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid, test, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed) 
                 else:
                     outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)

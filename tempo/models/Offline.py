@@ -19,12 +19,9 @@ import clip
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
-import gdown
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+
 
 criterion = nn.MSELoss()
-# folder_id = '1--gS9NbfADBB0qIM99xhhXHGjTDet88k'  # Your Google Drive folder ID
 folder_id = "/home/arielsi/VisionaryTimes/Pics_embed"
 
 
@@ -113,10 +110,6 @@ class TEMPO(nn.Module):
             self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
             self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
             self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-
-        # self.d_vis_layer_trend = nn.Linear(configs.d_model, configs.d_model)
-        # self.d_vis_layer_season = nn.Linear(configs.d_model, configs.d_model)
-        # self.d_vis_layer_noise = nn.Linear(configs.d_model, configs.d_model)
         ############--adding vision support--#################    
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)
@@ -476,14 +469,6 @@ class TEMPO(nn.Module):
                 return x, reduce_sim, selected_prompts
             else:
                 return x
-    
-
-    # def save_embedding(self, embed_vec, filename="", save_dir="/home/arielsi/VisionaryTimes/Pics_embed/Trends_embed"):
-    #     os.makedirs(save_dir, exist_ok=True)   # Ensure the save directory exists
-    #     file_path = os.path.join(save_dir, filename)
-    #     torch.save(embed_vec, file_path)
-    #     print(f"Saved embedding to {file_path}")
-
             
     def create_image(self, x_local):
         images = []
@@ -526,7 +511,7 @@ class TEMPO(nn.Module):
         season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
         noise_local = x - trend_local - season_local
         
-        # if vis iis local
+        # if vis will be local for every patch (and not global)
         # trend = self.get_patch(trend_local) # 4, 64, 16
         # season = self.get_patch(season_local)
         # noise = self.get_patch(noise_local)

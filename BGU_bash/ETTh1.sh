@@ -71,7 +71,7 @@ python train_TEMPO.py \
     --model $model \
     --tmax $tmax \
     --cos 1 \
-    --vision 1 \
+    --vision 0 \
     --is_gpt 1 #>> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
 

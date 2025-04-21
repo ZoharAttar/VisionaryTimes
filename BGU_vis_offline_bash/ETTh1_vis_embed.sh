@@ -20,7 +20,7 @@ learning_rate=0.001
 patience=5
 save_dir="/home/arielsi/VisionaryTimes/Pics_embed"
 pred_len=96
-seq_len=336 
+seq_len=512 
 
 
 # Define dataset arguments
@@ -54,7 +54,7 @@ python generate_vis_embed_offline.py \
     --patience 5 \
     --save_dir "/home/arielsi/VisionaryTimes/Pics_embed" \
     --pred_len 96 \
-    --seq_len 336 \
+    --seq_len 512 \
     --datasets ETTh1\
     --target_data ETTh1\
     --eval_data ETTh1\
