@@ -1455,13 +1455,14 @@ class UEAloader(Dataset):
 # 2. run on gpu 6000 -- DONE
 # 3. save and load the data -- DONE
 # 4. change prompt to classification -- DONE
+# 5. add option to input data as ts_by_feature -- DONE
+# 6. change / add diractory of saved datasets with ts_by_feature option -- DONE
+# 7. understand why it doesnt take the args from bash (takes from defult) -- DONE
+# 8. add to configs/multiple_datasets.yml all datasets -- DONE
 
-# 5. add option to input data as ts_by_feature -- IN PROGRESS
+# 9. add option to input data as cell level (like before) -- wait with this
 
-# 6. add option to input data as cell level (like before) -- wait with this
-
-# 7. see how they did validation and implement it
-# 8. check on other datasets + add to configs/multiple_datasets.yml all datasets
-# 9. change / add diractory of saved datasets with ts_by_feature option
-# 10. understand why it doesnt take the args from bash (takes from defult)
-# 11. print(preds) in tools.py and verify if the result is ok because we see all ~the same and [positive, negative]
+# 10. see how they did validation and implement it
+# 11. check on other datasets 
+# 12. print(preds) in tools.py and verify if the result is ok because we see all ~the same and [positive, negative]
+# 13. verify that the x = x.permute(0, 2, 1, 3) is fine

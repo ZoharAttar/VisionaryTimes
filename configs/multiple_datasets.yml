@@ -142,4 +142,81 @@ datasets:
     embed: timeF
     freq: 0
     percent: 100
+  EthanolConcentration:
+    root_path: ./dataset/EthanolConcentration/
+    data_path: EthanolConcentration_TRAIN.ts
+    data_name: EthanolConcentration
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  Handwriting:
+    root_path: ./dataset/Handwriting/
+    data_path: Handwriting_TRAIN.ts
+    data_name: Handwriting
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  JapaneseVowels:
+    root_path: ./dataset/JapaneseVowels/
+    data_path: JapaneseVowels_TRAIN.ts
+    data_name: JapaneseVowels
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  PEMS-SF:
+    root_path: ./dataset/PEMS-SF/
+    data_path: PEMS-SF_TRAIN.ts
+    data_name: PEMS-SF
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  SelfRegulationSCP1:
+    root_path: ./dataset/SelfRegulationSCP1/
+    data_path: SelfRegulationSCP1_TRAIN.ts
+    data_name: SelfRegulationSCP1
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  SelfRegulationSCP2:
+    root_path: ./dataset/SelfRegulationSCP2/
+    data_path: SelfRegulationSCP2_TRAIN.ts
+    data_name: SelfRegulationSCP2
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  UWaveGestureLibrary:
+    root_path: ./dataset/UWaveGestureLibrary/
+    data_path: UWaveGestureLibrary_TRAIN.ts
+    data_name: UWaveGestureLibrary
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
   

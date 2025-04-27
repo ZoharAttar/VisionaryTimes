@@ -15,6 +15,6 @@
   --itr 1 \
   --learning_rate 0.001 \
   --ts_by_feature 1 \
-  --train_epochs 100 \
-  --patience 10
+  --train_epochs 10 \
+  --patience 5
   
