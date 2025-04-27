@@ -475,7 +475,7 @@ for ii in range(args.itr):
             vali_loss, val_accuracy = vali_classification(model, vali_data, vali_loader, criterion, args, device)
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Vali Acc: {4:.3f}".format(
                 epoch + 1, train_steps, train_loss, vali_loss, val_accuracy))
-            early_stopping(-val_accuracy, model, path)  # Use negative accuracy for early stopping
+            early_stopping(vali_loss, model, path)
         else:
             vali_loss = vali(model, vali_data, vali_loader, criterion, args, device, ii)
        

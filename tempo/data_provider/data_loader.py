@@ -19,6 +19,7 @@ from tempo.utils.augmentation import run_augmentation_single
 from joblib import Parallel, delayed
 
 
+
 warnings.filterwarnings('ignore')
 
 stl_position = 'stl/'
@@ -1271,20 +1272,22 @@ class UEAloader(Dataset):
 
         x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
 
-        for i in range(len(labels)):
-            for col in df.columns:
-                # Get the series corresponding to the current row and column
-                temp = df.loc[i][col]
-                series = np.array(df.loc[i][col])  # This grabs all values with index i from column col
-                result = STL(series, period=404).fit()
-                trend, seasonal, resid = result.trend, result.seasonal, result.resid
-                
-                x.append(series)
-                x_trend.append(trend)
-                x_seasonal.append(seasonal)
-                x_resid.append(resid)
-                y.append(labels.iloc[i][0])
-                samples_ids.append(i)
+        def decompose(i, col):
+            series = df.at[i, col]
+            result = STL(series, period=404).fit()
+            return (series, result.trend, result.seasonal, result.resid, labels.iloc[i][0], i)
+
+        results = Parallel(n_jobs=-1)(delayed(decompose)(i, col) 
+                                    for i in range(min(len(labels), 20000)) 
+                                    for col in df.columns)
+
+        for series, trend, seasonal, resid, label, sample_id in results:
+            x.append(series)
+            x_trend.append(trend)
+            x_seasonal.append(seasonal)
+            x_resid.append(resid)
+            y.append(label)
+            samples_ids.append(sample_id)
 
 
         self.x = np.array(x)
