@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
@@ -1268,16 +1267,41 @@ class UEAloader(Dataset):
         
         df, labels = self.feature_df, self.labels_df
 
-        if path.exists(self.path_to_saved_data): # if the data is already saved, load it
-            #TODO: load all 
-            self.x = 
-            self.x_trend = 
-            self.x_seasonal = 
-            self.x_resid = 
-            self.y = 
-            self.samples_ids = 
-            self.unique_sampels_ids = 
-            self.samples = 
+        def save_object(obj, path):
+            with open(path, 'wb') as f:
+                pickle.dump(obj, f)
+
+        def load_object(path):
+            with open(path, 'rb') as f:
+                return pickle.load(f)
+
+        save_dir = f'saved_datasets/{data_name}/{flag}/'
+        os.makedirs(save_dir, exist_ok=True)  # create directory if it doesn't exist
+
+        files = {
+            'x.pkl': None,
+            'y.pkl': None,
+            'x_trend.pkl': None,
+            'x_seasonal.pkl': None,
+            'x_resid.pkl': None,
+            'samples_ids.pkl': None,
+            'unique_samples_ids.pkl': None,
+            'samples.pkl': None
+        }
+
+        # Check if all files already exist
+        all_exist = all(os.path.exists(os.path.join(save_dir, fname)) for fname in files)
+
+        if all_exist: # if the data is already saved, load it
+            print("Loading saved dataset...")
+            self.x = np.array(load_object(os.path.join(save_dir, 'x.pkl')))
+            self.x_trend = np.array(load_object(os.path.join(save_dir, 'x_trend.pkl')))
+            self.x_seasonal = np.array(load_object(os.path.join(save_dir, 'x_seasonal.pkl')))
+            self.x_resid = np.array(load_object(os.path.join(save_dir, 'x_resid.pkl')))
+            self.y = np.array(load_object(os.path.join(save_dir, 'y.pkl')))
+            self.samples_ids = load_object(os.path.join(save_dir, 'samples_ids.pkl'))
+            self.unique_sampels_ids = np.array(load_object(os.path.join(save_dir, 'unique_samples_ids.pkl')))
+            self.samples = load_object(os.path.join(save_dir, 'samples.pkl'))
         
         else: # if the data is not saved, process it and save it
 
@@ -1327,12 +1351,16 @@ class UEAloader(Dataset):
                 indices = np.where(self.samples_ids == sample_id)[0]
                 self.samples[sample_id] = indices
 
-            # Save the data
-            with open(self.path_to_saved_data, 'wb') as f:
-                pickle.dump((self.x, self.x_trend, self.x_seasonal, self.x_resid, self.y, self.samples_ids, self.unique_sampels_ids, self.samples), f)
-            # Save the labels
-            with open(self.path_to_saved_labels, 'wb') as f:
-                pickle.dump(self.labels_df, f)
+            # Save the processed objects
+            save_object(x, os.path.join(save_dir, 'x.pkl'))
+            save_object(y, os.path.join(save_dir, 'y.pkl'))
+            save_object(x_trend, os.path.join(save_dir, 'x_trend.pkl'))
+            save_object(x_seasonal, os.path.join(save_dir, 'x_seasonal.pkl'))
+            save_object(x_resid, os.path.join(save_dir, 'x_resid.pkl'))
+            save_object(samples_ids, os.path.join(save_dir, 'samples_ids.pkl'))
+            save_object(self.unique_sampels_ids, os.path.join(save_dir, 'unique_samples_ids.pkl'))
+            save_object(self.samples, os.path.join(save_dir, 'samples.pkl'))
+            print("Dataset saved")
 
     def __len__(self):
         return len(self.unique_sampels_ids) 
@@ -1421,9 +1449,9 @@ class UEAloader(Dataset):
 
 # TODO:
 # 1. validate the dim in the softmax
-# 2. run on gpu 6000
-# 3. save and load the data
 
+# 2. run on gpu 6000 -- DONE
+# 3. save and load the data -- DONE
 # 4. change prompt to classification -- DONE
 
 # 5. add option to input data as ts_by_feature

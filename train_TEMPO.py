@@ -205,7 +205,7 @@ parser.add_argument('--decay_fac', type=float, default=0.9) # Factor by which le
 
 parser.add_argument('--learning_rate', type=float, default=0.001) # Initial learning rate for training.
 
-parser.add_argument('--batch_size', type=int, default=2) # Batch size for training.
+parser.add_argument('--batch_size', type=int, default=4) # Batch size for training.
 
 parser.add_argument('--num_workers', type=int, default=0) # Number of worker threads for data loading.
 

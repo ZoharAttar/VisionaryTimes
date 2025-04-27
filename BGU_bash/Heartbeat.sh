@@ -19,7 +19,7 @@
   # --des 'Exp' \
   --itr 1 \
   --learning_rate 0.001 \
-  --ts_by_feature 1 \
+  --ts_by_feature 0 \
   --train_epochs 100 \
   --patience 10
   
