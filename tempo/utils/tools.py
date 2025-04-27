@@ -642,7 +642,7 @@ def vali_classification(model, vali_data, vali_loader, criterion, args, device, 
     return total_loss, accuracy
 
 def test_classification(model, test_data, test_loader, criterion, args, device):
-    return vali_classification(model, test_data, test_loader, criterion, args, devic, val_flag=False)
+    return vali_classification(model, test_data, test_loader, criterion, args, device, val_flag=False)
 
 def cal_accuracy(predictions, targets):
     """
