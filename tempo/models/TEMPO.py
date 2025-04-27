@@ -100,6 +100,7 @@ class TEMPO(nn.Module):
         # self.mlp = configs.mlp
         self.device = device
         self.vision = configs.vision
+        self.ts_by_feature = configs.ts_by_feature
 
         ############--adding vision support--#################    
         if self.vision:
@@ -548,6 +549,9 @@ class TEMPO(nn.Module):
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
 
         if self.task_name == 'classification':
+            if self.ts_by_feature:
+                x = x.permute(0, 2, 1, 3) # Swaps dimensions 1 and 2
+            
             # x.shape = [2, 61, 405, 1] == > [batch size, num of features(cells in a row), points in the time series(in each cell), channel independence???]
             B, num_cells, L, M = x.shape
             x= x.reshape(B*num_cells, L) # converting [2, 61, 405, 1] to [122, 405, 1] because the model receives channel independence data

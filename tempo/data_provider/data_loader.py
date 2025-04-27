@@ -1246,7 +1246,7 @@ class UEAloader(Dataset):
     def __init__(self, args, root_path, file_list=None, limit_size=None, flag=None, data_name = 'Heartbeat'):
         self.args = args
         self.ts_by_feature = args.ts_by_feature
-        self.data_name = data_name
+        self.data_name = args.datasets
         self.root_path = root_path
         self.flag = flag
         self.all_df, self.labels_df = self.load_all(root_path, file_list=file_list, flag=flag)
@@ -1275,7 +1275,10 @@ class UEAloader(Dataset):
             with open(path, 'rb') as f:
                 return pickle.load(f)
 
-        save_dir = f'saved_datasets/{data_name}/{flag}/'
+        if self.ts_by_feature:
+            save_dir = f'saved_datasets/ts_by_feature/{self.data_name}/{self.flag}/'
+        else: 
+            save_dir = f'saved_datasets/{self.data_name}/{self.flag}/'
         os.makedirs(save_dir, exist_ok=True)  # create directory if it doesn't exist
 
         files = {
@@ -1311,13 +1314,13 @@ class UEAloader(Dataset):
             x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
 
             if self.ts_by_feature:
-                def decompose(series):
-                    i = series.Index
+                def decompose_by_feature(index, series):
+                    series = series.values
                     result = STL(series, period=404).fit()
-                    return (series, result.trend, result.seasonal, result.resid, labels[i], i)
+                    return (series, result.trend, result.seasonal, result.resid, labels.iloc[index][0], index)
 
-                results = Parallel(n_jobs=-1)(delayed(decompose)(series) 
-                                            for series in df) 
+                results = Parallel(n_jobs=-1)(delayed(decompose_by_feature)(index, series) 
+                                            for index, series in df.iterrows()) 
                                             
             else:
                 # ts by cell and sample (feature independent)
@@ -1327,7 +1330,7 @@ class UEAloader(Dataset):
                     return (series, result.trend, result.seasonal, result.resid, labels.iloc[i][0], i)
 
                 results = Parallel(n_jobs=-1)(delayed(decompose)(i, col) 
-                                            for i in range(min(len(labels), 20000)) 
+                                            for i in range(len(labels)) 
                                             for col in df.columns)
 
             for series, trend, seasonal, resid, label, sample_id in results:
@@ -1448,16 +1451,17 @@ class UEAloader(Dataset):
 
 
 # TODO:
-# 1. validate the dim in the softmax
-
+# 1. validate the dim in the softmax -- DONE
 # 2. run on gpu 6000 -- DONE
 # 3. save and load the data -- DONE
 # 4. change prompt to classification -- DONE
 
-# 5. add option to input data as ts_by_feature
-# 6. add option to input data as cell level (like before) -- wait with this
-# 7. see how they did validation and implement it
-# 8. check on other datasets
+# 5. add option to input data as ts_by_feature -- IN PROGRESS
 
-        
-        
+# 6. add option to input data as cell level (like before) -- wait with this
+
+# 7. see how they did validation and implement it
+# 8. check on other datasets + add to configs/multiple_datasets.yml all datasets
+# 9. change / add diractory of saved datasets with ts_by_feature option
+# 10. understand why it doesnt take the args from bash (takes from defult)
+# 11. print(preds) in tools.py and verify if the result is ok because we see all ~the same and [positive, negative]

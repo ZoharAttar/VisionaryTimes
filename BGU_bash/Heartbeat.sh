@@ -5,21 +5,16 @@
   --num_classes 2 \
   --seq_len 405 \
   --pred_len 0 \
-  # --is_training 1 \
-  # --root_path ./dataset/Heartbeat/ \
-  # --model_id Heartbeat \
   --model_id Heartbeat'_'TEMPO'_' \
   --model TEMPO \
-  --data UEA \
+  --data Heartbeat \
   --e_layers 3 \
-  --batch_size 1 \
-  --d_model 128 \
+  --batch_size 4 \
+  --d_model 768 \
   --d_ff 256 \
-  # --top_k 3 \
-  # --des 'Exp' \
   --itr 1 \
   --learning_rate 0.001 \
-  --ts_by_feature 0 \
+  --ts_by_feature 1 \
   --train_epochs 100 \
   --patience 10
   

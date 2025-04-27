@@ -131,3 +131,15 @@ datasets:
     embed: timeF
     freq: 0
     percent: 100
+  SpokenArabicDigits:
+    root_path: ./dataset/SpokenArabicDigits/
+    data_path: SpokenArabicDigits_TRAIN.ts
+    data_name: SpokenArabicDigits
+    data: UEA
+    lradj: type4
+    features: M
+    target: OT
+    embed: timeF
+    freq: 0
+    percent: 100
+  
