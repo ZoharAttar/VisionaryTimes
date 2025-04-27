@@ -143,9 +143,9 @@ class TEMPO(nn.Module):
             
             # self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
             self.tokenizer = GPT2Tokenizer.from_pretrained("openai-community/gpt2")
-            self.gpt2_trend_token = self.tokenizer(text="Predict the future time step given the trend", return_tensors="pt").to(device)
-            self.gpt2_season_token = self.tokenizer(text="Predict the future time step given the season", return_tensors="pt").to(device)
-            self.gpt2_residual_token = self.tokenizer(text="Predict the future time step given the residual", return_tensors="pt").to(device)
+            self.gpt2_trend_token = self.tokenizer(text="Classify this time series given the trend", return_tensors="pt").to(device)
+            self.gpt2_season_token = self.tokenizer(text="Classify this time series given the season", return_tensors="pt").to(device)
+            self.gpt2_residual_token = self.tokenizer(text="Classify this time series given the residual", return_tensors="pt").to(device)
 
             self.token_len = len(self.gpt2_trend_token['input_ids'][0])
 

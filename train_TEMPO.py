@@ -179,6 +179,8 @@ parser.add_argument('--task_name', type=str, default='long_term_forecast') # Def
 parser.add_argument('--num_classes', type=int, default=None, help='Number of classes for classification (will be determined by dataset)')
 
 parser.add_argument('--augmentation_ratio', type=float, default=0.0, help='How many times to augment (classification)')
+
+parser.add_argument('--ts_by_feature', type=int, default=0, help='Whether to use time series by feature or not (cell/row as input is not) (0 = No, 1 = Yes)')
  
 
 

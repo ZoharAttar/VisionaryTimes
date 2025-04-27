@@ -633,8 +633,8 @@ def vali_classification(model, vali_data, vali_loader, criterion, args, device):
 
     preds = torch.cat(preds, 0)
     trues = torch.cat(trues, 0)
-    probs = torch.nn.functional.softmax(preds)
-    predictions = torch.argmax(probs, dim=1).cpu().numpy()
+    # probs = torch.nn.functional.softmax(preds)
+    predictions = torch.argmax(preds, dim=1).cpu().numpy() #TODO: verify dim 1 is classes
     trues = trues.flatten().cpu().numpy()
     accuracy = cal_accuracy(predictions, trues)
 

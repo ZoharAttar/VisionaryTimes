@@ -1246,6 +1246,7 @@ class UEAloader(Dataset):
 
     def __init__(self, args, root_path, file_list=None, limit_size=None, flag=None, data_name = 'Heartbeat'):
         self.args = args
+        self.ts_by_feature = args.ts_by_feature
         self.data_name = data_name
         self.root_path = root_path
         self.flag = flag
@@ -1267,40 +1268,71 @@ class UEAloader(Dataset):
         
         df, labels = self.feature_df, self.labels_df
 
-        normalizer = Normalizer()
-        df = normalizer.normalize(df)
+        if path.exists(self.path_to_saved_data): # if the data is already saved, load it
+            #TODO: load all 
+            self.x = 
+            self.x_trend = 
+            self.x_seasonal = 
+            self.x_resid = 
+            self.y = 
+            self.samples_ids = 
+            self.unique_sampels_ids = 
+            self.samples = 
+        
+        else: # if the data is not saved, process it and save it
 
-        x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
+            normalizer = Normalizer()
+            df = normalizer.normalize(df)
 
-        def decompose(i, col):
-            series = df.at[i, col]
-            result = STL(series, period=404).fit()
-            return (series, result.trend, result.seasonal, result.resid, labels.iloc[i][0], i)
+            x, x_trend, x_seasonal, x_resid, y, samples_ids = [], [], [], [], [], []
 
-        results = Parallel(n_jobs=-1)(delayed(decompose)(i, col) 
-                                    for i in range(min(len(labels), 20000)) 
-                                    for col in df.columns)
+            if self.ts_by_feature:
+                def decompose(series):
+                    i = series.Index
+                    result = STL(series, period=404).fit()
+                    return (series, result.trend, result.seasonal, result.resid, labels[i], i)
 
-        for series, trend, seasonal, resid, label, sample_id in results:
-            x.append(series)
-            x_trend.append(trend)
-            x_seasonal.append(seasonal)
-            x_resid.append(resid)
-            y.append(label)
-            samples_ids.append(sample_id)
+                results = Parallel(n_jobs=-1)(delayed(decompose)(series) 
+                                            for series in df) 
+                                            
+            else:
+                # ts by cell and sample (feature independent)
+                def decompose(i, col):
+                    series = df.at[i, col]
+                    result = STL(series, period=404).fit()
+                    return (series, result.trend, result.seasonal, result.resid, labels.iloc[i][0], i)
+
+                results = Parallel(n_jobs=-1)(delayed(decompose)(i, col) 
+                                            for i in range(min(len(labels), 20000)) 
+                                            for col in df.columns)
+
+            for series, trend, seasonal, resid, label, sample_id in results:
+                x.append(series)
+                x_trend.append(trend)
+                x_seasonal.append(seasonal)
+                x_resid.append(resid)
+                y.append(label)
+                samples_ids.append(sample_id)
 
 
-        self.x = np.array(x)
-        self.x_trend = np.array(x_trend)
-        self.x_seasonal = np.array(x_seasonal)
-        self.x_resid = np.array(x_resid)
-        self.y = np.array(y)
-        self.samples_ids = np.array(samples_ids)
-        self.unique_sampels_ids = np.unique(self.samples_ids)
-        self.samples = {}
-        for sample_id in self.unique_sampels_ids:
-            indices = np.where(self.samples_ids == sample_id)[0]
-            self.samples[sample_id] = indices
+            self.x = np.array(x)
+            self.x_trend = np.array(x_trend)
+            self.x_seasonal = np.array(x_seasonal)
+            self.x_resid = np.array(x_resid)
+            self.y = np.array(y)
+            self.samples_ids = np.array(samples_ids)
+            self.unique_sampels_ids = np.unique(self.samples_ids)
+            self.samples = {}
+            for sample_id in self.unique_sampels_ids:
+                indices = np.where(self.samples_ids == sample_id)[0]
+                self.samples[sample_id] = indices
+
+            # Save the data
+            with open(self.path_to_saved_data, 'wb') as f:
+                pickle.dump((self.x, self.x_trend, self.x_seasonal, self.x_resid, self.y, self.samples_ids, self.unique_sampels_ids, self.samples), f)
+            # Save the labels
+            with open(self.path_to_saved_labels, 'wb') as f:
+                pickle.dump(self.labels_df, f)
 
     def __len__(self):
         return len(self.unique_sampels_ids) 
@@ -1386,6 +1418,18 @@ class UEAloader(Dataset):
 
         return df, labels_df
 
+
+# TODO:
+# 1. validate the dim in the softmax
+# 2. run on gpu 6000
+# 3. save and load the data
+
+# 4. change prompt to classification -- DONE
+
+# 5. add option to input data as ts_by_feature
+# 6. add option to input data as cell level (like before) -- wait with this
+# 7. see how they did validation and implement it
+# 8. check on other datasets
 
         
         
