@@ -470,21 +470,73 @@ class TEMPO(nn.Module):
             else:
                 return x
             
-    def create_image(self, x_local):
+    # def create_image(self, x_local, show_plot=False):
+    #     save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+    #     os.makedirs(save_dir, exist_ok=True)  # Make sure the directory exists
+    #     images = []
+    #     for i in range(x_local.shape[0]):
+    #         # Create a plot
+    #         fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
+    #         ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {i+1}")
+    #         ax.legend()
+            
+    #         show_plot = True
+    #         if show_plot:
+    #             plt.show()
+            
+    #         # Save the plot as an image file
+    #         save_path = os.path.join(save_dir, f'plot_{i+1}.png')
+    #         fig.savefig(save_path)
+            
+
+    #         buf = BytesIO()
+    #         plt.savefig(buf, format='png')
+    #         buf.seek(0)
+    #         image = Image.open(buf).convert("RGB")
+    #         buf.close()
+    #         plt.close(fig)  # Close the plot to free resources
+            
+    #         # Preprocess the image using the vision encoder's preprocess function
+    #         image_tensor = self.vision_encoder_preprocess(image).to(self.device)
+    #         images.append(image_tensor)
+                  
+    #     ans = torch.stack(images)
+    #     return ans
+
+    def create_image(self, x_local, show_plot=False):
+        save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+        os.makedirs(save_dir, exist_ok=True)  # Make sure the directory exists
+
+        if not hasattr(self, 'plot_counter'):
+            self.plot_counter = 0  # Initialize a counter the first time
+
         images = []
         for i in range(x_local.shape[0]):
             # Create a plot
             fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
-            ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {i+1}")
+            ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {self.plot_counter + 1}")
+            ax.legend()
+
+            show_plot = True
+            if show_plot:
+                plt.show()
+                # Save the plot as an image file
+                save_path = os.path.join(save_dir, f'plot_{self.plot_counter + 1}.png')
+                fig.savefig(save_path)
+                self.plot_counter += 1
+
+            # Save also into buffer
             buf = BytesIO()
-            plt.savefig(buf, format='png')
+            fig.savefig(buf, format='png')  # Use fig.savefig here, not plt.savefig
             buf.seek(0)
             image = Image.open(buf).convert("RGB")
             buf.close()
             plt.close(fig)  # Close the plot to free resources
+
             # Preprocess the image using the vision encoder's preprocess function
             image_tensor = self.vision_encoder_preprocess(image).to(self.device)
             images.append(image_tensor)
+
         ans = torch.stack(images)
         return ans
         

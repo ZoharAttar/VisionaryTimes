@@ -1,0 +1,89 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import torch
+from sklearn.metrics.pairwise import cosine_similarity
+import seaborn as sns
+import os
+from PIL import Image
+import clip
+import random
+
+# Initialize device and CLIP model
+device = "cuda" if torch.cuda.is_available() else "cpu"
+vision_encoder, vision_encoder_preprocess = clip.load("ViT-B/32", device=device)
+
+# Set save directory
+save_dir = '/home/arielsi/VisionaryTimes/synthetic_plots'
+os.makedirs(save_dir, exist_ok=True)
+
+def generate_gradual_increase(size=100):
+    """Generates a gradual increase in values."""
+    return np.linspace(0, 10, size) + np.random.normal(0, 0.5, size)
+
+def generate_sharp_changes(size=100):
+    """Generates sharp increases and declines."""
+    x = np.linspace(0, 10, size)
+    y = np.sin(x) + np.random.normal(0, 2, size)  # Sharp peaks and valleys
+    return y
+
+def generate_noise(size=100):
+    """Generates random noise."""
+    return np.random.normal(0, 1, size)
+
+def create_plot(data, plot_title, save_path):
+    """Creates and saves a plot from data."""
+    plt.figure(figsize=(5, 5))
+    plt.plot(data)
+    plt.title(plot_title)
+    plt.savefig(save_path, bbox_inches='tight', dpi=300)
+    plt.close()
+
+def create_and_save_embeddings():
+    all_embeddings = []
+    labels = []
+
+    # Generate and save 20 plots for each type
+    for category, gen_func in zip(['Gradual_Increase', 'Sharp_Changes', 'Noise'], 
+                                  [generate_gradual_increase, generate_sharp_changes, generate_noise]):
+        for i in range(20):
+            # Generate data
+            data = gen_func()
+            
+            # Create plot
+            plot_title = f"{category}_Plot_{i+1}"
+            plot_path = os.path.join(save_dir, f"{category}_{i+1}.png")
+            create_plot(data, plot_title, plot_path)
+            
+            # Preprocess and get embedding using CLIP
+            image = Image.open(plot_path)
+            image_input = vision_encoder_preprocess(image).unsqueeze(0).to(device)
+
+            # Get the embedding from the vision model
+            with torch.no_grad():
+                image_features = vision_encoder.encode_image(image_input)
+
+            # Append the embedding and label
+            all_embeddings.append(image_features.cpu().numpy())
+            labels.append(category)
+
+    return np.array(all_embeddings), labels
+
+# Generate and obtain embeddings
+embeddings, labels = create_and_save_embeddings()
+
+# Convert to numpy
+embeddings = embeddings.reshape(embeddings.shape[0], -1)  # Flatten embeddings
+
+# Optionally: Save the embeddings if needed
+np.save(os.path.join(save_dir, "synthetic_embeddings.npy"), embeddings)
+
+# Compute cosine similarity matrix (for visualizing similarities)
+sim_matrix = cosine_similarity(embeddings)
+
+# Plot similarity matrix
+sns.heatmap(sim_matrix, cmap='viridis')
+plt.title("Cosine Similarity Between Synthetic Embeddings")
+plt.savefig(os.path.join(save_dir, "embedding_similarity_heatmap.png"))
+plt.show()
+
+print("Embeddings generated and saved successfully!")

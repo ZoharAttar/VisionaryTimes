@@ -385,8 +385,8 @@ class Dataset_ETT_minute(Dataset):
         self.tot_len = len(self.data_x) - self.seq_len - self.pred_len + 1
         try:
             trend_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_trend_embedding_{flag}.pth'
-            season_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_season_embedding{flag}.pth'
-            noise_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_noise_embedding{flag}.pth'
+            season_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_season_embedding_{flag}.pth'
+            noise_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_noise_embedding_{flag}.pth'
             if os.path.exists(trend_path):
                 self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
                 # print(f"trend shape: {self.trend_vis_embed.shape}, dataset length: {self.__len__()}")

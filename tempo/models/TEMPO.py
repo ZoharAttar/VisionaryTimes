@@ -189,10 +189,13 @@ class TEMPO(nn.Module):
         if configs.prompt == 1:
             # print((configs.d_model+9) * self.patch_num)
             self.use_token = configs.use_token
+            num_vis_token = 0
+            if self.vision == 1:
+                num_vis_token = 1
             if self.use_token == 1: # if use prompt token's representation as the forecasting's information
-                    self.out_layer_trend = nn.Linear(configs.d_model * (self.patch_num+self.token_len), configs.pred_len)
-                    self.out_layer_season = nn.Linear(configs.d_model * (self.patch_num+self.token_len), configs.pred_len)
-                    self.out_layer_noise = nn.Linear(configs.d_model * (self.patch_num+self.token_len), configs.pred_len)
+                    self.out_layer_trend = nn.Linear(configs.d_model * (self.patch_num+self.token_len+num_vis_token), configs.pred_len)
+                    self.out_layer_season = nn.Linear(configs.d_model * (self.patch_num+self.token_len+num_vis_token), configs.pred_len)
+                    self.out_layer_noise = nn.Linear(configs.d_model * (self.patch_num+self.token_len+num_vis_token), configs.pred_len)
             else:
                 self.out_layer_trend = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
                 self.out_layer_season = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)

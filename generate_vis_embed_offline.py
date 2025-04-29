@@ -227,7 +227,7 @@ train_data, train_loader, test_data, test_loader, val_data, val_loader = prepare
 # train_data, train_loader, test_data, test_loader = prepare_data_loaders(args, config)[0:4]
 
 # Compute vision embeddings for train
-# compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
+compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
 
 # Compute vision embeddings for validation
 compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val")
