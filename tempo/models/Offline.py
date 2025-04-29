@@ -503,35 +503,148 @@ class TEMPO(nn.Module):
     #     ans = torch.stack(images)
     #     return ans
 
-    def create_image(self, x_local, show_plot=False):
-        save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
-        os.makedirs(save_dir, exist_ok=True)  # Make sure the directory exists
+    # def create_image(self, x_local, type, dataset, show_plot=False):
+    #     """
+    #     Plots a time series and returns it as a normalized image tensor.
 
-        if not hasattr(self, 'plot_counter'):
-            self.plot_counter = 0  # Initialize a counter the first time
+    #     Args:
+    #         x_local (Tensor): Time series data with shape (B, L, M) in our case (1,512,1) | x_local == batch_x from the dataloader         
+    #         B: Batch size | L: Sequence length (time steps) | M: Number of features (e.g., 1 for univariate time series)
+    #         we take time series with 512 "points" and plot it.
+    #         show_plot (bool): If True, will display the plot using plt.show()
+    #     Returns:
+    #         Tensor: Image tensor (e.g., for CLIP) 
+    #     """
+
+    #     save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+    #     os.makedirs(save_dir, exist_ok=True)  # Make sure the directory exists 
+    #     if type == 'Trend':
+    #         if not hasattr(self, 'trend_plot_counter'):
+    #             self.trend_plot_counter = 0 
+    #     if type == 'Season':
+    #         if not hasattr(self, 'season_plot_counter'):
+    #             self.season_plot_counter = 0
+    #     else:
+    #         if not hasattr(self, 'residual_plot_counter'):
+    #             self.residual_plot_counter = 0
+
+    #     images = []
+    #     # print(x_local.shape)
+    #     for i in range(x_local.shape[0]): # Iterate over the batch dimension. 
+    #         # print(x_local[i])
+    #         # Plot the time series for sample i (in our 512 values-->"points")
+    #         fig, ax = plt.subplots(figsize=(5, 5))
+    #         if type == 'Trend':
+    #             ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"{dataset} Plot {type}_{self.trend_plot_counter + 1}")
+    #             ax.legend()
+    #         if type == 'Season':
+    #             ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"{dataset} Plot {type}_{self.season_plot_counter + 1}")
+    #             ax.legend()
+    #         else: 
+    #             ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"{dataset} Plot {type}_{self.residual_plot_counter + 1}")
+    #             ax.legend()
+            
+    #         show_plot = True
+    #         if show_plot:
+    #             plt.show()
+    #             # Save the plot as an image file
+    #             if type == 'Trend':
+    #                 save_path = os.path.join(save_dir, f'{dataset} Plot {type}_{self.trend_plot_counter + 1}.png')
+    #                 fig.savefig(save_path)
+    #                 self.trend_plot_counter += 1
+    #             if type == 'Season':
+    #                 save_path = os.path.join(save_dir, f'{dataset} Plot {type}_{self.season_plot_counter + 1}.png')
+    #                 fig.savefig(save_path)
+    #                 self.season_plot_counter += 1
+    #             else: 
+    #                 save_path = os.path.join(save_dir, f'{dataset} Plot {type}_{self.residual_plot_counter + 1}.png')
+    #                 fig.savefig(save_path)
+    #                 self.residual_plot_counter += 1
+                
+    #         # Save also into buffer
+    #         buf = BytesIO()
+    #         fig.savefig(buf, format='png')  # Use fig.savefig here, not plt.savefig
+    #         buf.seek(0)
+    #         image = Image.open(buf).convert("RGB")
+    #         buf.close()
+    #         plt.close(fig)  # Close the plot to free resources
+
+    #         # Preprocess the image using the vision encoder's preprocess function
+    #         image_tensor = self.vision_encoder_preprocess(image).to(self.device)
+    #         images.append(image_tensor)
+
+    #     ans = torch.stack(images)
+    #     return ans
+        
+    def create_image(self, x_local, type, dataset, show_plot=False):
+        """
+        Plots a time series and returns it as a normalized image tensor.
+
+        Args:
+            x_local (Tensor): Time series data with shape (B, L, M), e.g., (1,512,1)
+            type (str): One of ['Trend', 'Season', 'Residual']
+            dataset (str): Dataset name to include in filename
+            show_plot (bool): If True, will display the plot using plt.show()
+            
+        Returns:
+            Tensor: Image tensor (e.g., for CLIP)
+        """
+
+        save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Initialize counters if they don't exist
+        if not hasattr(self, 'trend_plot_counter'):
+            self.trend_plot_counter = 0
+        if not hasattr(self, 'season_plot_counter'):
+            self.season_plot_counter = 0
+        if not hasattr(self, 'residual_plot_counter'):
+            self.residual_plot_counter = 0
 
         images = []
-        for i in range(x_local.shape[0]):
-            # Create a plot
-            fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
-            ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {self.plot_counter + 1}")
+
+        for i in range(x_local.shape[0]):  # Iterate over the batch
+            time_series = x_local[i].squeeze().cpu().detach().numpy()
+            time_steps = range(len(time_series))
+
+            fig, ax = plt.subplots(figsize=(5, 5))
+
+            # Plot and update based on type
+            if type == 'Trend':
+                counter = self.trend_plot_counter
+                label = f"{dataset} Plot {type}_{counter + 1}"
+                filename = f"{label}.png"
+                self.trend_plot_counter += 1
+            elif type == 'Season':
+                counter = self.season_plot_counter
+                label = f"{dataset} Plot {type}_{counter + 1}"
+                filename = f"{label}.png"
+                self.season_plot_counter += 1
+            else:  # Residual or any fallback
+                counter = self.residual_plot_counter
+                label = f"{dataset} Plot {type}_{counter + 1}"
+                filename = f"{label}.png"
+                self.residual_plot_counter += 1
+
+            ax.plot(time_steps, time_series, label=label)
+            ax.set_xlabel("Time Step")
+            ax.set_ylabel("Value")
+            ax.set_title(label)
             ax.legend()
 
-            show_plot = True
             if show_plot:
                 plt.show()
-                # Save the plot as an image file
-                save_path = os.path.join(save_dir, f'plot_{self.plot_counter + 1}.png')
-                fig.savefig(save_path)
-                self.plot_counter += 1
 
-            # Save also into buffer
+            save_path = os.path.join(save_dir, filename)
+            fig.savefig(save_path)
+
+            # Save into buffer
             buf = BytesIO()
-            fig.savefig(buf, format='png')  # Use fig.savefig here, not plt.savefig
+            fig.savefig(buf, format='png')
             buf.seek(0)
             image = Image.open(buf).convert("RGB")
             buf.close()
-            plt.close(fig)  # Close the plot to free resources
+            plt.close(fig)
 
             # Preprocess the image using the vision encoder's preprocess function
             image_tensor = self.vision_encoder_preprocess(image).to(self.device)
@@ -539,7 +652,6 @@ class TEMPO(nn.Module):
 
         ans = torch.stack(images)
         return ans
-        
 
     def vision_embed(self, image, type='Trend'):
         # Process image and compute its embedding
@@ -550,7 +662,7 @@ class TEMPO(nn.Module):
     
 
     @torch.no_grad()
-    def compute_vision_embeddings(self, x, save_dir="/home/arielsi/VisionaryTimes/Pics_embed"):
+    def compute_vision_embeddings(self, x, save_dir="/home/arielsi/VisionaryTimes/Pics_embed", data = None):
         """Computes only the vision embeddings without running the full forward process."""
         os.makedirs(save_dir, exist_ok=True)  # Ensure save directory exists
         
@@ -571,9 +683,9 @@ class TEMPO(nn.Module):
         # print(trend_local.shape)
 
         # Create images from the components
-        trend_image = self.create_image(trend_local)
-        season_image = self.create_image(season_local)
-        noise_image = self.create_image(noise_local)
+        trend_image = self.create_image(trend_local, 'Trend' , data)
+        season_image = self.create_image(season_local, 'Season', data)
+        noise_image = self.create_image(noise_local, 'Residual', data)
         
         # Compute vision embeddings
         trend_embed = self.vision_embed(trend_image, 'Trend')

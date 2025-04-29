@@ -136,7 +136,7 @@ def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader
         trend_list, season_list, noise_list = [] , [] , []
         for batch_x, _, _, _, _, _, _, _, _, _, in tqdm(data_loader, total = len(data_loader)):
             batch_x = batch_x.float().to(device)
-            trend_embed, season_embed, noise_embed = model.compute_vision_embeddings(batch_x, save_dir)
+            trend_embed, season_embed, noise_embed = model.compute_vision_embeddings(batch_x, save_dir, data)
             trend_list.append(trend_embed)
             season_list.append(season_embed)
             noise_list.append(noise_embed)
