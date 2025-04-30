@@ -86,7 +86,7 @@ def prepare_data_loaders(args, config):
         test_data, test_loader = data_provider(args, 'TEST')
         
         # For classification, we use the same test set for validation
-        val_data, val_loader = train_data, train_loader
+        val_data, val_loader = test_data, test_loader
     
     else:
         # Existing forecasting code

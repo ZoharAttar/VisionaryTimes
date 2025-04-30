@@ -1364,6 +1364,7 @@ class UEAloader(Dataset):
             save_object(self.unique_sampels_ids, os.path.join(save_dir, 'unique_samples_ids.pkl'))
             save_object(self.samples, os.path.join(save_dir, 'samples.pkl'))
             print("Dataset saved")
+        
 
     def __len__(self):
         return len(self.unique_sampels_ids) 
@@ -1420,7 +1421,6 @@ class UEAloader(Dataset):
         self.class_names = labels.cat.categories
         labels_df = pd.DataFrame(labels.cat.codes,
                                  dtype=np.int8)  # int8-32 gives an error when using nn.CrossEntropyLoss
-
         lengths = df.applymap(
             lambda x: len(x)).values  # (num_samples, num_dimensions) array containing the length of each series
 

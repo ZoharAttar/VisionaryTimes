@@ -1,17 +1,19 @@
-python -u train_TEMPO.py \
+    python -u train_TEMPO.py \
   --task_name classification \
-  --is_training 1 \
-  --root_path ./dataset/Handwriting/ \
-  --model_id Handwriting \
+  --config_path ./configs/multiple_datasets.yml \
+  --datasets Handwriting\
+  --num_classes 26 \
+  --seq_len 152 \
+  --pred_len 0 \
+  --model_id Handwriting'_'TEMPO'_' \
   --model TEMPO \
-  --data UEA \
+  --data Handwriting \
   --e_layers 3 \
-  --batch_size 16 \
-  --d_model 128 \
+  --batch_size 8 \
+  --d_model 768 \
   --d_ff 256 \
-  --top_k 3 \
-  --des 'Exp' \
   --itr 1 \
   --learning_rate 0.001 \
-  --train_epochs 100 \
-  --patience 10
+  --ts_by_feature 1 \
+  --train_epochs 2 \
+  --patience 5
