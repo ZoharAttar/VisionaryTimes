@@ -1462,7 +1462,7 @@ class UEAloader(Dataset):
 
 # 9. add option to input data as cell level (like before) -- wait with this
 
-# 10. see how they did validation and implement it
+# 10. see how they did validation and implement it - they took the test to the validation
 # 11. check on other datasets 
 # 12. print(preds) in tools.py and verify if the result is ok because we see all ~the same and [positive, negative]
 # 13. verify that the x = x.permute(0, 2, 1, 3) is fine
