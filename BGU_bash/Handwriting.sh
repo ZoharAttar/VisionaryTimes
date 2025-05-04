@@ -1,11 +1,11 @@
   ts_by_feature=1
 
 if [ "$ts_by_feature" -eq 1 ]; then
-  enc_in=
-  seq_len=152
-else
   enc_in=152
-  seq_len=
+  seq_len=3
+else
+  enc_in=3
+  seq_len=152
 fi
   
     python -u train_TEMPO.py \
