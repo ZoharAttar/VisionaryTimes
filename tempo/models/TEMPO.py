@@ -278,6 +278,14 @@ class TEMPO(nn.Module):
                 nn.Dropout(configs.dropout),
                 nn.Linear(configs.d_model // 2, self.num_classes)
             )
+
+            # self.head_nf = configs.d_model * \
+            #            int((configs.seq_len - patch_len) / stride + 2)
+            self.head_nf =  3 * self.patch_num * configs.d_model
+            self.flatten = nn.Flatten(start_dim=-2) 
+            self.dropout = nn.Dropout(configs.dropout)
+            self.projection = nn.Linear(
+                self.head_nf * configs.enc_in, self.num_classes)
             
     @classmethod
     def load_pretrained_model(
@@ -549,8 +557,9 @@ class TEMPO(nn.Module):
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
 
         if self.task_name == 'classification':
-            if self.ts_by_feature:
-                x = x.permute(0, 2, 1, 3) # Swaps dimensions 1 and 2
+            print("x shape:", x.shape)
+            # if self.ts_by_feature:
+                # [2, 405, 61, 1]
             
             # x.shape = [2, 61, 405, 1] == > [batch size, num of features(cells in a row), points in the time series(in each cell), channel independence???]
             B, num_cells, L, M = x.shape
@@ -680,18 +689,47 @@ class TEMPO(nn.Module):
 
         
         if self.task_name == 'classification':
-            
             x_all = torch.cat((trend, season, noise), dim=1) 
-            #[122, 150, 768] 
+            # print("x_all shape before permute: ", x_all.shape)
+            #[122, 150, 768] --> 150 is 3 * patch_size, 3 is the number of components
             x_all = x_all.reshape(B, num_cells, *x_all.shape[1:]) #return to [samples(rows = #cells * #features), features, tokens, d_model] (each row has 61 cells made of vectors of shape[150,768]) 
-            #[2, 61, 150, 768] 
-            x_all = x_all.mean(dim=2) #convert the cell vector representaion to shape of [768] using mean
-            #[2, 61, 768]
-            x_all = x_all.mean(dim=1) #aggregate cells for each row using mean to to have a classification for each row(sample)
-            #[2, 768]
-            outputs = self.classification_head(x_all) #classification for each row(sample)
-            #[2, 2]
-            return outputs
+            #[2, 61, 150, 768]
+
+            # z : [bs x nvars x patch_num x d_model]
+            # Decoder
+            output = self.flatten(x_all)
+            # z : [bs x nvars x patch_num * d_model]
+            output = self.dropout(output)
+            # z : [bs x nvars x patch_num * d_model]
+            output = output.reshape(output.shape[0], -1)
+            # z : [bs x nvars * patch_num * d_model]
+            output = self.projection(output)  
+            # (batch_size, num_classes)
+            
+            # x_all = torch.cat((trend, season, noise), dim=1) 
+            # #[122, 150, 768] 
+            # if self.ts_by_feature:
+            #     print("x_all shape before permute: ", x_all.shape)
+            #     x_all = x_all.permute(0, 2, 1)
+            #     print("x_all shape after permute: ", x_all.shape)
+            # else:
+
+            #     x_all = x_all.reshape(B, num_cells, *x_all.shape[1:]) #return to [samples(rows = #cells * #features), features, tokens, d_model] (each row has 61 cells made of vectors of shape[150,768]) 
+            #     #[2, 61, 150, 768] 
+            #     x_all = x_all.reshape(B, num_cells, -1)
+            #     #[2, 61, 150*768]
+            #     x_all = self.classifier_1(x_all)#150*768-->768
+            #     #[2, 61, 768]
+            #     x_all = x_all.reshape(B,-1)
+            #     #[2, 61*768]
+            #     outputs = self.classification_head(x_all)
+            #     # x_all = x_all.mean(dim=2) #convert the cell vector representaion to shape of [768] using mean
+            #     # #[2, 61, 768]
+            #     # x_all = x_all.mean(dim=1) #aggregate cells for each row using mean to to have a classification for each row(sample)
+            #     # #[2, 768]
+            #     # outputs = self.classification_head(x_all) #classification for each row(sample)
+            #     # #[2, 2]
+            return output
             
         trend = self.out_layer_trend(trend.reshape(B*M, -1)) # 4, 96
         trend = rearrange(trend, '(b m) l -> b l m', b=B) # 4, 96, 1

@@ -1265,6 +1265,7 @@ class UEAloader(Dataset):
         self.num_features = len(self.feature_names)
         self.feature_df = self.all_df
         
+        
         df, labels = self.feature_df, self.labels_df
 
         def save_object(obj, path):
@@ -1278,6 +1279,7 @@ class UEAloader(Dataset):
         if self.ts_by_feature:
             save_dir = f'saved_datasets/ts_by_feature/{self.data_name}/{self.flag}/'
         else: 
+            # count how many rows with index =  0 (405)
             save_dir = f'saved_datasets/{self.data_name}/{self.flag}/'
         os.makedirs(save_dir, exist_ok=True)  # create directory if it doesn't exist
 

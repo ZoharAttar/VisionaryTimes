@@ -86,7 +86,7 @@ def prepare_data_loaders(args, config):
         test_data, test_loader = data_provider(args, 'TEST')
         
         # For classification, we use the same test set for validation
-        val_data, val_loader = test_data, test_loader
+        val_data, val_loader = train_data, train_loader
     
     else:
         # Existing forecasting code
@@ -406,12 +406,14 @@ for ii in range(args.itr):
                 
                 batch_x = batch_x.float().to(device) 
                 label = label.float().to(device) # there is a label for each row
+                # print("labels:", label)
 
                 seq_trend = seq_trend.float().to(device)
                 seq_seasonal = seq_seasonal.float().to(device)
                 seq_resid = seq_resid.float().to(device)
                 
                 outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
+                # print(outputs)
                 loss = criterion(outputs, label.long()) # outpus is [batch size, num classes], label is [batch size] (the label for each sample)
                 train_loss.append(loss.item())
 
