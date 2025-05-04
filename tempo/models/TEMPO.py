@@ -557,7 +557,6 @@ class TEMPO(nn.Module):
     def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
 
         if self.task_name == 'classification':
-            print("x shape:", x.shape)
             # if self.ts_by_feature:
                 # [2, 405, 61, 1]
             
