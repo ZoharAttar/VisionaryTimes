@@ -25,7 +25,7 @@ python -u train_TEMPO.py \
   --itr 1 \
   --learning_rate 0.001 \
   --ts_by_feature $ts_by_feature \
-  --train_epochs 5 \
+  --train_epochs 2 \
   --patience 5 \
   --enc_in $enc_in
   

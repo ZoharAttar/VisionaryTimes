@@ -25,6 +25,7 @@ fi
   --itr 1 \
   --learning_rate 0.001 \
   --ts_by_feature $ts_by_feature \
-  --train_epochs 2 \
+  --train_epochs 10 \
   --patience 5 \
-  --enc_in $enc_in
+  --enc_in $enc_in \
+  --patch_size 8
