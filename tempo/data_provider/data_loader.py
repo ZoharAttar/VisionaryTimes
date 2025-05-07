@@ -1461,10 +1461,17 @@ class UEAloader(Dataset):
 # 6. change / add diractory of saved datasets with ts_by_feature option -- DONE
 # 7. understand why it doesnt take the args from bash (takes from defult) -- DONE
 # 8. add to configs/multiple_datasets.yml all datasets -- DONE
-
 # 9. add option to input data as cell level (like before) -- wait with this
+# 10. see how they did validation and implement it - they took the test to the validation -- DONE
+# 11. check on other datasets -- DONE
+# 12. print(preds) in tools.py and verify if the result is ok because we see all ~the same and [positive, negative] -- DONE
+# 13. verify that the x = x.permute(0, 2, 1, 3) is fine -- DONE
 
-# 10. see how they did validation and implement it - they took the test to the validation
-# 11. check on other datasets 
-# 12. print(preds) in tools.py and verify if the result is ok because we see all ~the same and [positive, negative]
-# 13. verify that the x = x.permute(0, 2, 1, 3) is fine
+
+## ideas may be helpful:
+# 1. currently we are padding with zeros, maybe we should pad with some other value
+# 2. we can add a mask to the data, so we can ignore the padded values
+# 3. we change the patch_size of some of the datasets to 8 or lower instead of 16 - try to change it
+#    self.patch_num = (configs.seq_len - self.patch_size) // self.stride + 1
+# 4. currently stride=8 - we can change it too
+# 5. 

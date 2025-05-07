@@ -19,7 +19,7 @@ fi
   --model TEMPO \
   --data SelfRegulationSCP2 \
   --e_layers 3 \
-  --batch_size 8 \
+  --batch_size 7 \
   --d_model 768 \
   --d_ff 256 \
   --itr 1 \
@@ -27,4 +27,5 @@ fi
   --ts_by_feature $ts_by_feature \
   --train_epochs 10 \
   --patience 5 \
-  --enc_in $enc_in
+  --enc_in $enc_in \
+  --patch_size 4

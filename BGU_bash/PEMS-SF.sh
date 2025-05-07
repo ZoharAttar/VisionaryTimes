@@ -19,7 +19,7 @@ fi
   --model TEMPO \
   --data PEMS-SF \
   --e_layers 3 \
-  --batch_size 8 \
+  --batch_size 1 \
   --d_model 768 \
   --d_ff 256 \
   --itr 1 \

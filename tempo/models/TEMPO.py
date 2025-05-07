@@ -417,8 +417,8 @@ class TEMPO(nn.Module):
     
     def get_patch(self, x):
         x = rearrange(x, 'b l m -> b m l')
-        x = self.padding_patch_layer(x) # 4, 1, 420
-        x = x.unfold(dimension=-1, size=self.patch_size, step=self.stride) #4,1, 64, 16
+        x = self.padding_patch_layer(x) # 4, 1, 420 | add stride to seq_len
+        x = x.unfold(dimension=-1, size=self.patch_size, step=self.stride) #4,1, 64, 16 | patch size needs to be lower then seq_len+stride
         x = rearrange(x, 'b m n p -> (b m) n p') # 4, 64, 16 [batch_size, number of patches, patch_size]
         return x
     
