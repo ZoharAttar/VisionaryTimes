@@ -1,11 +1,11 @@
 ts_by_feature=1
 
 if [ "$ts_by_feature" -eq 1 ]; then
-  enc_in=896
-  seq_len=6
+  enc_in=93
+  seq_len=13
 else
-  enc_in=6
-  seq_len=896
+  enc_in=13
+  seq_len=93
 fi
   
     python -u train_TEMPO.py \
