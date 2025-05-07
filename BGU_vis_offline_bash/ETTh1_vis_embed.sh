@@ -58,4 +58,5 @@ python generate_vis_embed_offline.py \
     --datasets ETTh1\
     --target_data ETTh1\
     --eval_data ETTh1\
+    --use_components 1\
     # >> $log_file 2>&1

@@ -100,6 +100,7 @@ class TEMPO(nn.Module):
         # self.mlp = configs.mlp
         self.device = device
         self.vision = configs.vision
+        self.use_components = configs.use_components
 
         ############--adding vision support--#################    
         if self.vision:

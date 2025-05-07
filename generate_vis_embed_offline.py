@@ -214,7 +214,7 @@ parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether 
 parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
 parser.add_argument("--save_dir", type=str, default="/home/arielsi/VisionaryTimes/Pics_embed")
 parser.add_argument('--create_offline_vision', type=int, default=1) 
-
+parser.add_argument('--use_components', type=int, default=1)
 
 args = parser.parse_args()
 config = get_init_config(args.config_path)
