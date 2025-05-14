@@ -20,7 +20,7 @@ traffic_multiplier=1
 
 for percent in 100 
 do
-for pred_len in  96 
+for pred_len in 96 
 do
 for tmax in 20
 do
@@ -37,16 +37,18 @@ mkdir logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$eq
 mkdir logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer
 echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
+# --datasets ETTh2 \
+
 
 # python main_multi_6domain_release.py \
 python train_TEMPO.py \
-    --datasets ETTh1,ETTh2,ETTm1,electricity,traffic,weather \
+    --datasets ETTm2 \
     --target_data ETTm2 \
+    --eval_data ETTm2\
     --config_path ./configs/multiple_datasets.yml \
     --stl_weight 0.001 \
     --equal $equal \
     --checkpoint ./lora_revin_6domain_checkpoints_pmt1'_'$prompt/ \
-    --model_id ettm2_pmt1_no_pool_TEMPO'_'$gpt_layer'_'prompt_learn'_'$seq_len'_'$pred_len'_'$percent \
     --electri_multiplier $electri_multiplier \
     --traffic_multiplier $traffic_multiplier \
     --seq_len $seq_len \
@@ -67,12 +69,10 @@ python train_TEMPO.py \
     --stride 8 \
     --gpt_layer $gpt_layer \
     --itr 3 \
-    --eval_data ETTm2 \
-    --vision 0 \
-    --vis_encoder_dim 512 \
     --model $model \
     --tmax $tmax \
     --cos 1 \
+    --vision 1\
     --is_gpt 1 #>> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
 
 
