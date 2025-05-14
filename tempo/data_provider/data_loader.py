@@ -1246,6 +1246,7 @@ class UEAloader(Dataset):
     def __init__(self, args, root_path, file_list=None, limit_size=None, flag=None, data_name = 'Heartbeat'):
         self.args = args
         self.ts_by_feature = args.ts_by_feature
+        self.vision = args.vision
         self.data_name = args.datasets
         self.root_path = root_path
         self.flag = flag
@@ -1254,9 +1255,9 @@ class UEAloader(Dataset):
 
         if self.vision:
             try:
-                trend_path = f'/Pics_embed/{data_name}_trend_embedding_{flag}.pth'
-                season_path = f'/Pics_embed/{data_name}_season_embedding_{flag}.pth'
-                noise_path = f'/Pics_embed/{data_name}_noise_embedding_{flag}.pth'
+                trend_path = f'./Pics_embed/{data_name.lower()}_trend_embedding_{flag.lower()}.pth'
+                season_path = f'./Pics_embed/{data_name.lower()}_season_embedding_{flag.lower()}.pth'
+                noise_path = f'./Pics_embed/{data_name.lower()}_noise_embedding_{flag.lower()}.pth'
                 
                 print(trend_path)
                 print(season_path)
@@ -1264,19 +1265,19 @@ class UEAloader(Dataset):
 
                 if os.path.exists(trend_path):
                     self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
-                    # print(f"trend shape: {self.trend_vis_embed.shape}, dataset length: {self.__len__()}")
+                    print(f"trend shape: {self.trend_vis_embed.shape}")
 
                 else:
                     self.trend_vis_embed = None
                 if os.path.exists(season_path):
                     self.season_vis_embed = torch.load(season_path, map_location='cpu')
-                    # print(f"season shape: {self.season_vis_embed.shape}, dataset length: {self.__len__()}")
+                    print(f"season shape: {self.season_vis_embed.shape}")
 
                 else:
                     self.season_vis_embed = None
                 if os.path.exists(noise_path):
                     self.noise_vis_embed = torch.load(noise_path, map_location='cpu')
-                    # print(f"noise shape: {self.noise_vis_embed.shape}, dataset length: {self.__len__()}")
+                    print(f"noise shape: {self.noise_vis_embed.shape}")
 
                 else:
                     self.noise_vis_embed = None
@@ -1415,7 +1416,7 @@ class UEAloader(Dataset):
         if self.vision:
             dummy_shape = (1, 512)
             if self.trend_vis_embed is not None:
-                my_trend_vis_embed = self.trend_vis_embed[index]
+                my_trend_vis_embed = self.trend_vis_embed[index] # TODO: in forecasting is a time series but in classification , now we get from [index] list of time series (by feature)
             else:
                 my_trend_vis_embed = torch.zeros(dummy_shape)
 
@@ -1429,9 +1430,7 @@ class UEAloader(Dataset):
             else:
                 my_noise_vis_embed = torch.zeros(dummy_shape)
 
-            return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed
-
-        return x, y, x_trend, x_seasonal, x_resid
+        return x, y, x_trend, x_seasonal, x_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed
 
     def load_all(self, root_path, file_list=None, flag=None):
         """

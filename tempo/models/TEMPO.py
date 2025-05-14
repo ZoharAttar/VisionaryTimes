@@ -554,7 +554,7 @@ class TEMPO(nn.Module):
         return x_local
 
     
-    def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False):
+    def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False, vis_trend=None, vis_season=None, vis_noise=None):
 
         if self.task_name == 'classification':
             # if self.ts_by_feature:

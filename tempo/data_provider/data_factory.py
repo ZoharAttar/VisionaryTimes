@@ -75,6 +75,10 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
         batch_size = args.batch_size
         freq = args.freq
 
+        if args.create_offline_vision == 1:
+            shuffle_flag = False
+            drop_last = False
+
         data_set = Data(
             args = args,
             root_path=args.root_path,
@@ -87,6 +91,6 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
             drop_last=drop_last,
-            collate_fn=lambda x: collate_fn(x,args.enc_in)
+            # collate_fn=lambda x: collate_fn(x,args.enc_in)
         )
         return data_set, data_loader

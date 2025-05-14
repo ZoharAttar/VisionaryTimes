@@ -1,4 +1,4 @@
-ts_by_feature=0
+ts_by_feature=1
 
 if [ "$ts_by_feature" -eq 1 ]; then
   enc_in=405
