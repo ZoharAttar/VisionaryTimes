@@ -486,7 +486,7 @@ class TEMPO(nn.Module):
             Tensor: Image tensor (e.g., for CLIP)
         """
 
-        save_dir = '/plot_pics'
+        save_dir = './plot_pics'
         os.makedirs(save_dir, exist_ok=True)
 
         # Initialize counters if they don't exist
@@ -533,8 +533,8 @@ class TEMPO(nn.Module):
             ax.plot(time_steps, time_series, label=label)
             ax.set_xlabel("Time Step")
             ax.set_ylabel("Value")
-            ax.set_title(label)
-            ax.legend()
+            # ax.set_title(label)
+            # ax.legend()
             
             show_plot = False 
             if show_plot:
@@ -582,8 +582,8 @@ class TEMPO(nn.Module):
                 ax.plot(time_steps, time_series, label=label)
                 ax.set_xlabel("Time Step")
                 ax.set_ylabel("Value")
-                ax.set_title(label)
-                ax.legend()
+                # ax.set_title(label)
+                # ax.legend()
                 
                 if show_plot:
                     plt.show()
@@ -619,11 +619,11 @@ class TEMPO(nn.Module):
         """Computes only the vision embeddings without running the full forward process."""
         os.makedirs(save_dir, exist_ok=True)  # Ensure save directory exists
         
-        B, L, M = x.shape  # Batch, Length, Features [[B,L,M]]
+        # B, L, M = x.shape  # Batch, Length, Features [[B,L,M]]
         if self.use_components == 0:
             trend_image = self.create_image(x, 'Trend' , data)
-            season_image = self.create_image(x, 'Season', data)
-            noise_image = self.create_image(x, 'Residual', data)
+            # season_image = self.create_image(x, 'Season', data)
+            # noise_image = self.create_image(x, 'Residual', data)
             
         else:
             x = self.rev_in_trend(x, 'norm')
@@ -654,10 +654,12 @@ class TEMPO(nn.Module):
         
         # Compute vision embeddings
         trend_embed = self.vision_embed(trend_image, 'Trend')
-        season_embed = self.vision_embed(season_image, 'Season')
-        noise_embed = self.vision_embed(noise_image, 'Residual')
+        # season_embed = self.vision_embed(season_image, 'Season')
+        # noise_embed = self.vision_embed(noise_image, 'Residual')
             
-        return trend_embed, season_embed, noise_embed
+        return trend_embed
+        # return trend_embed, season_embed, noise_embed
+
 
 
 

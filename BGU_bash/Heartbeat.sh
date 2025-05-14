@@ -27,5 +27,11 @@ python -u train_TEMPO.py \
   --ts_by_feature $ts_by_feature \
   --train_epochs 2 \
   --patience 5 \
-  --enc_in $enc_in
+  --enc_in $enc_in \
+  --vision 1 \
+  --create_offline_vision 0 \
+  --use_components 0 \
+  --target_data Heartbeat
+
+
   

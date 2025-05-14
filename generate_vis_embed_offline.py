@@ -145,6 +145,7 @@ def _combine_datasets(datasets):
     for dataset in datasets[1:]:
         combined = torch.utils.data.ConcatDataset([combined, dataset])
     return combined
+from itertools import islice
 
 def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader_type):
     """Compute embeddings using TEMPO's vision-based method."""
@@ -152,22 +153,31 @@ def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader
     os.makedirs(save_dir, exist_ok=True)
     with torch.no_grad():
         trend_list, season_list, noise_list = [] , [] , []
-        for batch_x, _, _, _, _, _, _, _, _, _, in tqdm(data_loader, total = len(data_loader)):
-            batch_x = batch_x.float().to(device)
-            trend_embed, season_embed, noise_embed = model.compute_vision_embeddings(batch_x, save_dir, data)
-            trend_list.append(trend_embed)
-            season_list.append(season_embed)
-            noise_list.append(noise_embed)
-            
-    trend_tensor = torch.stack(trend_list).unsqueeze(1)
-    season_tensor = torch.stack(season_list).unsqueeze(1)
-    noise_tensor = torch.stack(noise_list).unsqueeze(1)
+        for batch_x, _, _, _, _, _, _, _ in tqdm(data_loader, total = len(data_loader)):
+        # for batch_x, _, _, _, _, _, _, _ in tqdm(islice(data_loader, 2), total = 2):
+            print("start row")
+            series_trend_list, series_season_list, series_noise_list = [] , [] , []
+            for series in batch_x:
+                series = series.float().to(device)
+                # trend_embed, season_embed, noise_embed = model.compute_vision_embeddings(series, save_dir, data)
+                trend_embed = model.compute_vision_embeddings(series, save_dir, data)
+
+                series_trend_list.append(trend_embed)
+                # series_season_list.append(season_embed)
+                # series_noise_list.append(noise_embed)
+            trend_list.append(torch.stack(series_trend_list).squeeze(1))
+            # season_list.append(series_season_list)
+            # noise_list.append(series_noise_list)
+
+    trend_tensor = torch.stack(trend_list).squeeze(1)
+    # season_tensor = torch.stack(season_list).unsqueeze(1)
+    # noise_tensor = torch.stack(noise_list).unsqueeze(1)
     # print(trend_tensor.shape)
     data = data.lower()
     torch.save(trend_tensor, os.path.join(save_dir, f'{data}_trend_embedding_{loader_type}.pth'))
     # print(f'{data}_trend_embedding_{loader_type}.pth')
-    torch.save(season_tensor, os.path.join(save_dir, f'{data}_season_embedding_{loader_type}.pth'))
-    torch.save(noise_tensor, os.path.join(save_dir, f'{data}_noise_embedding_{loader_type}.pth'))
+    # torch.save(season_tensor, os.path.join(save_dir, f'{data}_season_embedding_{loader_type}.pth'))
+    # torch.save(noise_tensor, os.path.join(save_dir, f'{data}_noise_embedding_{loader_type}.pth'))
     print(f"Vision embeddings saved in {save_dir}")
 
 
@@ -241,7 +251,7 @@ parser.add_argument('--traffic_multiplier', type=int, default=1) # Multiplier fo
 parser.add_argument('--embed', type=str, default='timeF') # Type of embedding used (e.g., timeF for time-frequency embeddings).
 parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether vision-based models are used (1 = Yes, 0 = No).
 parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
-parser.add_argument("--save_dir", type=str, default="/Pics_embed")
+parser.add_argument("--save_dir", type=str, default="./Pics_embed")
 parser.add_argument('--create_offline_vision', type=int, default=1) 
 parser.add_argument('--use_components', type=int, default=1)
 
@@ -249,7 +259,7 @@ args = parser.parse_args()
 config = get_init_config(args.config_path)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = TEMPO(args, device).to(device)
-
+print("all args loaeded")
 # Prepare data loaders (only need the test loader for computing embeddings)
 train_data, train_loader, test_data, test_loader, val_data, val_loader = prepare_data_loaders(args, config)
 
@@ -259,7 +269,7 @@ train_data, train_loader, test_data, test_loader, val_data, val_loader = prepare
 compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
 
 # Compute vision embeddings for validation
-compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val")
+# compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val")
 
 # Compute vision embeddings for test
 compute_vision_embeddings(model, test_loader, device, args.save_dir, args.target_data, "test")

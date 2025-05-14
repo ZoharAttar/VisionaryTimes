@@ -1,4 +1,4 @@
-ts_by_feature=1
+ts_by_feature=0
 
 if [ "$ts_by_feature" -eq 1 ]; then
   enc_in=405
@@ -30,5 +30,6 @@ python -u generate_vis_embed_offline.py \
   --enc_in $enc_in \
   --create_offline_vision 1 \
   --vision 1 \
-  --use_components 1
+  --use_components 0 \
+  --target_data Heartbeat
   

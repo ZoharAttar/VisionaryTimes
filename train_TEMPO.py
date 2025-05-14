@@ -300,6 +300,10 @@ parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether 
 
 parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
 
+parser.add_argument('--create_offline_vision', type=int, default=0) # Dimensionality of the vision encoder.
+
+parser.add_argument('--use_components', type=int, default=1)
+
 #args = parser.parse_args([])
 args = parser.parse_args()
 config = get_init_config(args.config_path)
@@ -399,7 +403,7 @@ for ii in range(args.itr):
 
         if args.task_name == 'classification': 
             # each item in the train loader is a row and not a cell in the dataset, the loss is calculated for each row
-            for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid) in tqdm(enumerate(train_loader), total=len(train_loader)):
+            for i, (batch_x, label, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed) in tqdm(enumerate(train_loader), total=len(train_loader)):
                 batch_x = batch_x.unsqueeze(-1)
                 iter_count += 1
                 model_optim.zero_grad()
@@ -411,8 +415,16 @@ for ii in range(args.itr):
                 seq_trend = seq_trend.float().to(device)
                 seq_seasonal = seq_seasonal.float().to(device)
                 seq_resid = seq_resid.float().to(device)
+
+                if args.vision:
+                    my_trend_vis_embed = my_trend_vis_embed.float().to(device)
+                    my_season_vis_embed = my_season_vis_embed.float().to(device)
+                    my_noise_vis_embed = my_noise_vis_embed.float().to(device)
+
+                    outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed)
                 
-                outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
+                else:
+                    outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
                 # print(outputs)
                 loss = criterion(outputs, label.long()) # outpus is [batch size, num classes], label is [batch size] (the label for each sample)
                 train_loss.append(loss.item())
