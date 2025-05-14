@@ -1251,6 +1251,38 @@ class UEAloader(Dataset):
         self.flag = flag
         self.all_df, self.labels_df = self.load_all(root_path, file_list=file_list, flag=flag)
         self.all_IDs = self.all_df.index.unique()  # all sample IDs (integer indices 0 ... num_samples-1)
+
+        if self.vision:
+            try:
+                trend_path = f'/Pics_embed/{data_name}_trend_embedding_{flag}.pth'
+                season_path = f'/Pics_embed/{data_name}_season_embedding_{flag}.pth'
+                noise_path = f'/Pics_embed/{data_name}_noise_embedding_{flag}.pth'
+                
+                print(trend_path)
+                print(season_path)
+                print(noise_path)
+
+                if os.path.exists(trend_path):
+                    self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
+                    # print(f"trend shape: {self.trend_vis_embed.shape}, dataset length: {self.__len__()}")
+
+                else:
+                    self.trend_vis_embed = None
+                if os.path.exists(season_path):
+                    self.season_vis_embed = torch.load(season_path, map_location='cpu')
+                    # print(f"season shape: {self.season_vis_embed.shape}, dataset length: {self.__len__()}")
+
+                else:
+                    self.season_vis_embed = None
+                if os.path.exists(noise_path):
+                    self.noise_vis_embed = torch.load(noise_path, map_location='cpu')
+                    # print(f"noise shape: {self.noise_vis_embed.shape}, dataset length: {self.__len__()}")
+
+                else:
+                    self.noise_vis_embed = None
+            except Exception as e:
+                print(f"Skipping vision embedding load due to: {e}")
+                pass
         
         if limit_size is not None:
             if limit_size > 1:
@@ -1379,6 +1411,25 @@ class UEAloader(Dataset):
         x_seasonal = self.x_seasonal[indices]
         x_resid = self.x_resid[indices]
         y = self.y[indices[0]]
+
+        if self.vision:
+            dummy_shape = (1, 512)
+            if self.trend_vis_embed is not None:
+                my_trend_vis_embed = self.trend_vis_embed[index]
+            else:
+                my_trend_vis_embed = torch.zeros(dummy_shape)
+
+            if self.season_vis_embed is not None:
+                my_season_vis_embed = self.season_vis_embed[index]
+            else:
+                my_season_vis_embed = torch.zeros(dummy_shape)
+
+            if self.noise_vis_embed is not None:
+                my_noise_vis_embed = self.noise_vis_embed[index]
+            else:
+                my_noise_vis_embed = torch.zeros(dummy_shape)
+
+            return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed
 
         return x, y, x_trend, x_seasonal, x_resid
 
