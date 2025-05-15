@@ -254,6 +254,10 @@ parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality
 parser.add_argument("--save_dir", type=str, default="./Pics_embed")
 parser.add_argument('--create_offline_vision', type=int, default=1) 
 parser.add_argument('--use_components', type=int, default=1)
+parser.add_argument('--take_vis_by_feature', type=int, default=1) # Whether to take vis embedding created by cell (when ts_by_feature=0 61 vis per item) or by feature (when ts_by_feature=1 405 vis per item)
+
+parser.add_argument('--all_components', type=int, default=1) # use all 3 STL components in model forward pass
+
 
 args = parser.parse_args()
 config = get_init_config(args.config_path)
@@ -266,7 +270,7 @@ train_data, train_loader, test_data, test_loader, val_data, val_loader = prepare
 # train_data, train_loader, test_data, test_loader = prepare_data_loaders(args, config)[0:4]
 
 # Compute vision embeddings for train
-compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
+# compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
 
 # Compute vision embeddings for validation
 # compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val")
