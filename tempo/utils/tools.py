@@ -626,10 +626,10 @@ def vali_classification(model, vali_data, vali_loader, criterion, args, device, 
                 my_season_vis_embed = my_season_vis_embed.float().to(device)
                 my_noise_vis_embed = my_noise_vis_embed.float().to(device)
 
-                outputs = model(batch_x, None, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed)
-            
+                outputs = model(x=batch_x, itr=None, trend=seq_trend, season=seq_seasonal, noise=seq_resid, vis_trend=my_trend_vis_embed, vis_season=my_season_vis_embed, vis_noise=my_noise_vis_embed)
+
             else:
-                outputs = model(batch_x, None, seq_trend, seq_seasonal, seq_resid)
+                outputs = model(x=batch_x, itr=None, trend=seq_trend, season=seq_seasonal, noise=seq_resid)
 
             pred = outputs.detach().cpu()
             loss = criterion(pred, label.long().cpu())

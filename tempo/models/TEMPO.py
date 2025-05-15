@@ -89,6 +89,8 @@ class TEMPO(nn.Module):
     def __init__(self, configs, device):
         super(TEMPO, self).__init__()
         self.is_gpt = configs.is_gpt
+        self.enc_in = configs.enc_in
+        self.all_components = configs.all_components
         self.patch_size = configs.patch_size
         self.pretrain = configs.pretrain
         self.stride = configs.stride
@@ -101,6 +103,8 @@ class TEMPO(nn.Module):
         self.device = device
         self.vision = configs.vision
         self.ts_by_feature = configs.ts_by_feature
+        self.use_components = configs.use_components
+        self.take_vis_by_feature = configs.take_vis_by_feature
 
         ############--adding vision support--#################    
         if self.vision:
@@ -109,9 +113,6 @@ class TEMPO(nn.Module):
             self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
             self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
 
-        # self.d_vis_layer_trend = nn.Linear(configs.d_model, configs.d_model)
-        # self.d_vis_layer_season = nn.Linear(configs.d_model, configs.d_model)
-        # self.d_vis_layer_noise = nn.Linear(configs.d_model, configs.d_model)
         ############--adding vision support--#################    
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)
@@ -144,7 +145,10 @@ class TEMPO(nn.Module):
             
             # self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
             self.tokenizer = GPT2Tokenizer.from_pretrained("openai-community/gpt2")
-            self.gpt2_trend_token = self.tokenizer(text="Classify this time series given the trend", return_tensors="pt").to(device)
+            if self.all_components:
+                self.gpt2_trend_token = self.tokenizer(text="Classify this time series given the trend", return_tensors="pt").to(device)
+            else:
+                self.gpt2_trend_token = self.tokenizer(text="Classify this time series", return_tensors="pt").to(device)
             self.gpt2_season_token = self.tokenizer(text="Classify this time series given the season", return_tensors="pt").to(device)
             self.gpt2_residual_token = self.tokenizer(text="Classify this time series given the residual", return_tensors="pt").to(device)
 
@@ -190,10 +194,13 @@ class TEMPO(nn.Module):
         if configs.prompt == 1:
             # print((configs.d_model+9) * self.patch_num)
             self.use_token = configs.use_token
+            num_vis_token = 0
+            if self.vision == 1:
+                num_vis_token = 1
             if self.use_token == 1: # if use prompt token's representation as the forecasting's information
-                    self.out_layer_trend = nn.Linear(configs.d_model * (self.patch_num+self.token_len), configs.pred_len)
-                    self.out_layer_season = nn.Linear(configs.d_model * (self.patch_num+self.token_len), configs.pred_len)
-                    self.out_layer_noise = nn.Linear(configs.d_model * (self.patch_num+self.token_len), configs.pred_len)
+                    self.out_layer_trend = nn.Linear(configs.d_model * (self.patch_num+self.token_len+num_vis_token), configs.pred_len)
+                    self.out_layer_season = nn.Linear(configs.d_model * (self.patch_num+self.token_len+num_vis_token), configs.pred_len)
+                    self.out_layer_noise = nn.Linear(configs.d_model * (self.patch_num+self.token_len+num_vis_token), configs.pred_len)
             else:
                 self.out_layer_trend = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
                 self.out_layer_season = nn.Linear(configs.d_model * self.patch_num, configs.pred_len)
@@ -281,11 +288,14 @@ class TEMPO(nn.Module):
 
             # self.head_nf = configs.d_model * \
             #            int((configs.seq_len - patch_len) / stride + 2)
-            self.head_nf =  3 * self.patch_num * configs.d_model
+            if self.all_components:
+                self.head_nf =  3 * self.patch_num * configs.d_model
+            else:
+                self.head_nf =  1 * self.patch_num * configs.d_model
             self.flatten = nn.Flatten(start_dim=-2) 
             self.dropout = nn.Dropout(configs.dropout)
             self.projection = nn.Linear(
-                self.head_nf * configs.enc_in, self.num_classes)
+                self.head_nf * self.enc_in, self.num_classes)
             
     @classmethod
     def load_pretrained_model(
@@ -494,67 +504,62 @@ class TEMPO(nn.Module):
             else:
                 return x
             
-    def create_image(self, x_local):
-    
-        images = []
-
-        for i in range(x_local.shape[0]):
-            # Create a plot
-            fig, ax = plt.subplots(figsize=(5, 5))  # Adjust the figure size as needed
-            ax.plot(x_local[i].squeeze().cpu().detach().numpy(), label=f"Data Plot {i+1}")
-
-            buf = BytesIO()
-            plt.savefig(buf, format='png')
-            buf.seek(0)
-            image = Image.open(buf).convert("RGB")
-            buf.close()
-            plt.close(fig)  # Close the plot to free resources
-
-            # Preprocess the image using the vision encoder's preprocess function
-            image_tensor = self.vision_encoder_preprocess(image).to(self.device)
-
-            images.append(image_tensor)
-        ans = torch.stack(images)
-        return ans
         
-    def vision_embed(self, x_local, image, type = 'Trend'):
-        # vis_layer_trend
-        [a,b,c] = x_local.shape
-        if type == 'Trend': 
-            with torch.no_grad():
-                image_embed_vec = self.vision_encoder.encode_image(image)
-            image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
-            image_embed_vec = self.vis_layer_trend(image_embed_vec)
-            image_embed_vec = image_embed_vec.unsqueeze(1)
-            # image_embed_vec = image_embed_vec.repeat(a,1,1)
-            # image_embed_vec = self.d_vis_layer_trend(image_embed_vec)
-            x_local = torch.cat((image_embed_vec, x_local), dim=1)
-            
-        
-        elif type == 'Season': 
-            with torch.no_grad():
-                image_embed_vec = self.vision_encoder.encode_image(image)
-            image_embed_vec = image_embed_vec.to(self.vis_layer_season.weight.dtype)
-            image_embed_vec = self.vis_layer_season(image_embed_vec)
-            image_embed_vec = image_embed_vec.unsqueeze(1)
-            # image_embed_vec = image_embed_vec.repeat(a,1,1)
-            # image_embed_vec = self.d_vis_layer_season(image_embed_vec)
-            x_local = torch.cat((image_embed_vec, x_local), dim=1)
-            
-        elif type == 'Residual': 
-            with torch.no_grad():
-                image_embed_vec = self.vision_encoder.encode_image(image)
-            image_embed_vec = image_embed_vec.to(self.vis_layer_noise.weight.dtype)
-            image_embed_vec = self.vis_layer_noise(image_embed_vec)
-            image_embed_vec = image_embed_vec.unsqueeze(1)
-            # image_embed_vec = image_embed_vec.repeat(a,1,1)
-            # image_embed_vec = self.d_vis_layer_noise(image_embed_vec)
-            x_local = torch.cat((image_embed_vec, x_local), dim=1)
-        
+    def vision_embed(self, x_local, vis_embed, type = 'Trend'):
+        # x local = [1620, 15, 768]
+        if type == 'Trend':
+            vis_embed = self.vis_layer_trend(vis_embed)
+            # [4, 1, 405, 768]
+
+            if self.take_vis_by_feature == 0:
+                # vis embed: # [4, 1, 61, 768]
+                vis_embed = vis_embed.repeat(1, self.enc_in, 1, 1) 
+                # [4, 405, 61, 768]
+                B, num_ts ,num_vis_embed, d_model = vis_embed.shape
+                vis_embed = vis_embed.reshape(B*num_ts, num_vis_embed, d_model)
+                # [1620, 61, 768]
+            else:
+                vis_embed = vis_embed.squeeze(1) 
+                # [4, 405, 768]
+                B, num_vis_embed, d_model = vis_embed.shape
+                vis_embed= vis_embed.reshape(B*num_vis_embed, d_model)
+                # [1620, 768]
+                vis_embed = vis_embed.unsqueeze(1) 
+                # [1620, 1, 768]
+
+            x_local = torch.cat((vis_embed, x_local), dim=1) 
+            # [1620, 16, 768] or [1620, 15+61, 768]
+        if type == 'Season':
+            vis_embed = self.vis_layer_season(vis_embed)
+            if self.take_vis_by_feature == 0:
+                vis_embed = vis_embed.repeat(1, self.enc_in, 1, 1) 
+                B, num_ts ,num_vis_embed, d_model = vis_embed.shape
+                vis_embed = vis_embed.reshape(B*num_ts, num_vis_embed, d_model)
+            else:
+                vis_embed = vis_embed.squeeze(1) 
+                B, num_vis_embed, d_model = vis_embed.shape
+                vis_embed= vis_embed.reshape(B*num_vis_embed, d_model)
+                vis_embed = vis_embed.unsqueeze(1) 
+
+            x_local = torch.cat((vis_embed, x_local), dim=1) 
+        if type == 'Residual':
+            vis_embed = self.vis_layer_noise(vis_embed)
+            if self.take_vis_by_feature == 0:
+                vis_embed = vis_embed.repeat(1, self.enc_in, 1, 1) 
+                B, num_ts ,num_vis_embed, d_model = vis_embed.shape
+                vis_embed = vis_embed.reshape(B*num_ts, num_vis_embed, d_model)
+            else:
+                vis_embed = vis_embed.squeeze(1) 
+                B, num_vis_embed, d_model = vis_embed.shape
+                vis_embed= vis_embed.reshape(B*num_vis_embed, d_model)
+                vis_embed = vis_embed.unsqueeze(1) 
+
+            x_local = torch.cat((vis_embed, x_local), dim=1) 
+
         return x_local
 
     
-    def forward(self, x, itr=0, trend=None, season=None, noise=None, test=False, vis_trend=None, vis_season=None, vis_noise=None):
+    def forward(self, x, itr=0, trend=None, season=None, noise=None, vis_trend=None, vis_season=None, vis_noise=None, test=False):
 
         if self.task_name == 'classification':
             # if self.ts_by_feature:
@@ -576,18 +581,22 @@ class TEMPO(nn.Module):
         else:
             B, L, M = x.shape # 4, 512, 1
 
-        x = self.rev_in_trend(x, 'norm')
-        original_x = x
-        # Moving average for trend
-        trend_local = self.moving_avg(x)
-        # Map trend
-        trend_local = self.map_trend(trend_local.squeeze(2)).unsqueeze(2)
-        # Calculate season
-        season_local = x - trend_local
-        # Map season
-        season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
-        # Calculate noise
-        noise_local = x - trend_local - season_local
+        if self.all_components:    
+            x = self.rev_in_trend(x, 'norm')
+            original_x = x
+            # Moving average for trend
+            trend_local = self.moving_avg(x)
+            # Map trend
+            trend_local = self.map_trend(trend_local.squeeze(2)).unsqueeze(2)
+            # Calculate season
+            season_local = x - trend_local
+            # Map season
+            season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
+            # Calculate noise
+            noise_local = x - trend_local - season_local
+        else: 
+            trend_local = x
+
         
         if trend is not None and self.task_name != 'classification':
             trend, means_trend, stdev_trend = self.get_norm(trend)
@@ -604,17 +613,12 @@ class TEMPO(nn.Module):
                 print("noise local loss", torch.mean(noise_local_l))
 
         trend = self.get_patch(trend_local) # 4, 64, 16
-        season = self.get_patch(season_local)
-        noise = self.get_patch(noise_local)
+        if self.all_components:
+            season = self.get_patch(season_local)
+            noise = self.get_patch(noise_local)
 
         # in_layer_trend: patch_size ---> d_model
         trend = self.in_layer_trend(trend) # 4, 64, 768  [batch size, number of patches, patch_size ---> d_model]
-
-        if self.vision:
-            # creating plot image of each component
-            trend_image = self.create_image(trend_local)
-            season_image = self.create_image(season_local)
-            noise_image = self.create_image(noise_local)
 
         if self.is_gpt and self.prompt == 1:
             if self.pool:
@@ -623,72 +627,87 @@ class TEMPO(nn.Module):
                 # trend is a concatination of the prompt embed (prompt_x) and the patch embed (x)
                 trend = self.get_emb(trend, self.gpt2_trend_token['input_ids'], 'Trend')
                 if self.vision:
-                    trend = self.vision_embed(trend, trend_image, 'Trend')
+                    trend = self.vision_embed(trend, vis_trend, 'Trend')
         else:
             trend = self.get_emb(trend)
             if self.vision:
-                trend = self.vision_embed(trend, trend_image, 'Trend')
-
-        season = self.in_layer_season(season) # 4, 64, 768
-        if self.is_gpt and self.prompt == 1:
-            if self.pool:
-                season, reduce_sim_season, season_selected_prompts = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
+                trend = self.vision_embed(trend, vis_trend, 'Trend')
+        
+        if self.all_components:
+            season = self.in_layer_season(season) # 4, 64, 768
+            if self.is_gpt and self.prompt == 1:
+                if self.pool:
+                    season, reduce_sim_season, season_selected_prompts = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
+                else:
+                    season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
+                    if self.vision:
+                        season = self.vision_embed(season, vis_season, 'Season')
             else:
-                season = self.get_emb(season, self.gpt2_season_token['input_ids'], 'Season')
+                season = self.get_emb(season)
                 if self.vision:
-                    season = self.vision_embed(season, season_image, 'Season')
-        else:
-            season = self.get_emb(season)
-            if self.vision:
-                season = self.vision_embed(season, season_image, 'Season')
+                    season = self.vision_embed(season, vis_season, 'Season')
 
-        noise = self.in_layer_noise(noise)
-        if self.is_gpt and self.prompt == 1:
-            if self.pool:
-                noise, reduce_sim_noise, noise_selected_prompts = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
+            noise = self.in_layer_noise(noise)
+            if self.is_gpt and self.prompt == 1:
+                if self.pool:
+                    noise, reduce_sim_noise, noise_selected_prompts = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
+                else:
+                    noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
+                    if self.vision:
+                        noise = self.vision_embed(noise, vis_noise, 'Residual')
             else:
-                noise = self.get_emb(noise, self.gpt2_residual_token['input_ids'], 'Residual')
+                noise = self.get_emb(noise)
                 if self.vision:
-                    noise = self.vision_embed(noise, noise_image, 'Residual')
-        else:
-            noise = self.get_emb(noise)
-            if self.vision:
-                noise = self.vision_embed(noise, noise_image, 'Residual')
+                    noise = self.vision_embed(noise, vis_noise, 'Residual')
 
         # print(noise_selected_prompts)
 
         # self.store_tensors_in_dict(original_x, trend_local, season_local, noise_local, trend_selected_prompts, season_selected_prompts, noise_selected_prompts)
-        
-        x_all = torch.cat((trend, season, noise), dim=1)
+        if self.all_components:
+            x_all = torch.cat((trend, season, noise), dim=1)
+        else: 
+            x_all = trend
 
-        x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state 
-        vision_token_len = 1
+        x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state  
+        
+        if self.take_vis_by_feature == 0:
+            vision_token_len = self.seq_len # 61
+        else:
+            vision_token_len = 1
         
         if self.prompt == 1:
             if self.vision:
                 trend  = x[:, :self.token_len+self.patch_num+vision_token_len, :]  
-                season  = x[:, self.token_len+self.patch_num+vision_token_len:2*self.token_len+2*self.patch_num+2*vision_token_len, :]  
-                noise = x[:, 2*self.token_len+2*self.patch_num+2*vision_token_len:, :]
+                if self.all_components:
+                    season  = x[:, self.token_len+self.patch_num+vision_token_len:2*self.token_len+2*self.patch_num+2*vision_token_len, :]  
+                    noise = x[:, 2*self.token_len+2*self.patch_num+2*vision_token_len:, :]
                 if self.use_token == 0:
                     trend = trend[:, self.token_len+vision_token_len:, :]
-                    season = season[:, self.token_len+vision_token_len:, :]
-                    noise = noise[:, self.token_len+vision_token_len:, :]
+                    if self.all_components:
+                        season = season[:, self.token_len+vision_token_len:, :]
+                        noise = noise[:, self.token_len+vision_token_len:, :]
             else:
                 trend  = x[:, :self.token_len+self.patch_num, :]  
-                season  = x[:, self.token_len+self.patch_num:2*self.token_len+2*self.patch_num, :]  
-                noise = x[:, 2*self.token_len+2*self.patch_num:, :]
+                if self.all_components:
+                    season  = x[:, self.token_len+self.patch_num:2*self.token_len+2*self.patch_num, :]  
+                    noise = x[:, 2*self.token_len+2*self.patch_num:, :]
                 if self.use_token == 0:
                     trend = trend[:, self.token_len:, :]
-                    season = season[:, self.token_len:, :]
-                    noise = noise[:, self.token_len:, :]    
+                    if self.all_components:
+                        season = season[:, self.token_len:, :]
+                        noise = noise[:, self.token_len:, :]    
         else:
             trend  = x[:, :self.patch_num, :]  
-            season  = x[:, self.patch_num:2*self.patch_num, :]  
-            noise = x[:, 2*self.patch_num:, :] 
+            if self.all_components:
+                season  = x[:, self.patch_num:2*self.patch_num, :]  
+                noise = x[:, 2*self.patch_num:, :] 
 
         
         if self.task_name == 'classification':
-            x_all = torch.cat((trend, season, noise), dim=1) 
+            if self.all_components:
+                x_all = torch.cat((trend, season, noise), dim=1) 
+            else:
+                x_all = trend
             # print("x_all shape before permute: ", x_all.shape)
             #[122, 150, 768] --> 150 is 3 * patch_size, 3 is the number of components
             x_all = x_all.reshape(B, num_cells, *x_all.shape[1:]) #return to [samples(rows = #cells * #features), features, tokens, d_model] (each row has 61 cells made of vectors of shape[150,768]) 

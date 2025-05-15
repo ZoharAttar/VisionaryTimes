@@ -302,7 +302,12 @@ parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality
 
 parser.add_argument('--create_offline_vision', type=int, default=0) # Dimensionality of the vision encoder.
 
-parser.add_argument('--use_components', type=int, default=1)
+parser.add_argument('--use_components', type=int, default=1) # use all 3 STL components to build offline vision embedding
+
+parser.add_argument('--take_vis_by_feature', type=int, default=1) # Whether to take vis embedding created by cell (when ts_by_feature=0 61 vis per item) or by feature (when ts_by_feature=1 405 vis per item)
+
+parser.add_argument('--all_components', type=int, default=1) # use all 3 STL components in model forward pass
+
 
 #args = parser.parse_args([])
 args = parser.parse_args()
@@ -410,7 +415,6 @@ for ii in range(args.itr):
                 
                 batch_x = batch_x.float().to(device) 
                 label = label.float().to(device) # there is a label for each row
-                # print("labels:", label)
 
                 seq_trend = seq_trend.float().to(device)
                 seq_seasonal = seq_seasonal.float().to(device)
@@ -421,11 +425,10 @@ for ii in range(args.itr):
                     my_season_vis_embed = my_season_vis_embed.float().to(device)
                     my_noise_vis_embed = my_noise_vis_embed.float().to(device)
 
-                    outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed)
+                    outputs = model(x=batch_x, itr=ii, trend=seq_trend, season=seq_seasonal, noise=seq_resid, vis_trend=my_trend_vis_embed, vis_season=my_season_vis_embed, vis_noise=my_noise_vis_embed)
                 
                 else:
-                    outputs = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid)
-                # print(outputs)
+                    outputs = model(x=batch_x, itr=ii, trend=seq_trend, season=seq_seasonal, noise=seq_resid)
                 loss = criterion(outputs, label.long()) # outpus is [batch size, num classes], label is [batch size] (the label for each sample)
                 train_loss.append(loss.item())
 
@@ -457,13 +460,13 @@ for ii in range(args.itr):
 
                 # print(seq_seasonal.shape)
                 if args.model == 'TEMPO' or 'multi' in args.model:
-                    outputs, loss_local = model(batch_x, ii, seq_trend, seq_seasonal, seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)
+                    outputs, loss_local = model(x=batch_x, iter=ii, trend=seq_trend, season=seq_seasonal, noise=seq_resid) #+ model(seq_seasonal, ii) + model(seq_resid, ii)
                 elif 'former' in args.model:
                     dec_inp = torch.zeros_like(batch_y[:, -args.pred_len:, :]).float()
                     dec_inp = torch.cat([batch_y[:, :args.label_len, :], dec_inp], dim=1).float().to(device)
                     outputs = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:
-                    outputs = model(batch_x, ii)
+                    outputs = model(x=batch_x, iter=ii)
                 outputs = outputs[:, -args.pred_len:, :]
                 batch_y = batch_y[:, -args.pred_len:, :].to(device)
                 loss = criterion(outputs, batch_y) 
