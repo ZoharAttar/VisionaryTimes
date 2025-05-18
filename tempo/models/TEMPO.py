@@ -528,7 +528,7 @@ class TEMPO(nn.Module):
                 # [1620, 1, 768]
 
             x_local = torch.cat((vis_embed, x_local), dim=1) 
-            # [1620, 16, 768] or [1620, 15+61, 768]
+            # [1620, 16, 768] or [1620, 15+61, 768] #TODO: check why 73 
         if type == 'Season':
             vis_embed = self.vis_layer_season(vis_embed)
             if self.take_vis_by_feature == 0:
@@ -560,7 +560,7 @@ class TEMPO(nn.Module):
 
     
     def forward(self, x, itr=0, trend=None, season=None, noise=None, vis_trend=None, vis_season=None, vis_noise=None, test=False):
-
+    
         if self.task_name == 'classification':
             # if self.ts_by_feature:
                 # [2, 405, 61, 1]
@@ -667,7 +667,7 @@ class TEMPO(nn.Module):
             x_all = torch.cat((trend, season, noise), dim=1)
         else: 
             x_all = trend
-
+        # print(x_all.shape) #TODO: check wy dim 73 
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state  
         
         if self.take_vis_by_feature == 0:

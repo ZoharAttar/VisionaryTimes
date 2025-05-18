@@ -147,7 +147,7 @@ def _combine_datasets(datasets):
     return combined
 from itertools import islice
 
-def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader_type):
+def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader_type, take_vis_by_feature):
     """Compute embeddings using TEMPO's vision-based method."""
     model.eval()
     os.makedirs(save_dir, exist_ok=True)
@@ -174,7 +174,11 @@ def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader
     # noise_tensor = torch.stack(noise_list).unsqueeze(1)
     # print(trend_tensor.shape)
     data = data.lower()
-    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_trend_embedding_{loader_type}.pth'))
+    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_trend_embedding_{loader_type}_{take_vis_by_feature}.pth'))
+    # saving x as 3 components - not using it later.
+    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_season_embedding_{loader_type}_{take_vis_by_feature}.pth'))
+    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_noise_embedding_{loader_type}_{take_vis_by_feature}.pth'))
+    
     # print(f'{data}_trend_embedding_{loader_type}.pth')
     # torch.save(season_tensor, os.path.join(save_dir, f'{data}_season_embedding_{loader_type}.pth'))
     # torch.save(noise_tensor, os.path.join(save_dir, f'{data}_noise_embedding_{loader_type}.pth'))
@@ -270,10 +274,10 @@ train_data, train_loader, test_data, test_loader, val_data, val_loader = prepare
 # train_data, train_loader, test_data, test_loader = prepare_data_loaders(args, config)[0:4]
 
 # Compute vision embeddings for train
-# compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
+compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train", args.take_vis_by_feature)
 
 # Compute vision embeddings for validation
-# compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val")
+# compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val", args.take_vis_by_feature)
 
 # Compute vision embeddings for test
-compute_vision_embeddings(model, test_loader, device, args.save_dir, args.target_data, "test")
+compute_vision_embeddings(model, test_loader, device, args.save_dir, args.target_data, "test", args.take_vis_by_feature)

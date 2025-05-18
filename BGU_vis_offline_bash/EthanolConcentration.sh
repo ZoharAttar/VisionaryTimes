@@ -1,25 +1,25 @@
 ts_by_feature=1
 
 if [ "$ts_by_feature" -eq 1 ]; then
-  enc_in=29
-  seq_len=12
+  enc_in=1751
+  seq_len=3
 else
-  enc_in=12
-  seq_len=29
+  enc_in=3
+  seq_len=1751
 fi
   
-    python -u train_TEMPO.py \
+python -u generate_vis_embed_offline.py \
   --task_name classification \
   --config_path ./configs/multiple_datasets.yml \
-  --datasets JapaneseVowels\
-  --num_classes 9 \
+  --datasets SpokenArabEthanolConcentrationicDigits\
+  --num_classes 4 \
   --seq_len $seq_len \
   --pred_len 0 \
-  --model_id JapaneseVowels'_'TEMPO'_' \
+  --model_id EthanolConcentration'_'TEMPO'_' \
   --model TEMPO \
-  --data JapaneseVowels \
+  --data EthanolConcentration \
   --e_layers 3 \
-  --batch_size 8 \
+  --batch_size 1 \
   --d_model 768 \
   --d_ff 256 \
   --itr 1 \
@@ -28,10 +28,8 @@ fi
   --train_epochs 10 \
   --patience 5 \
   --enc_in $enc_in \
-  --vision 0 \
-  --create_offline_vision 0 \
+  --create_offline_vision 1 \
+  --vision 1 \
   --use_components 0 \
-  --target_data Heartbeat \
-  --prompt 1 \
-  --take_vis_by_feature 1 \
-  --all_components 0 
+  --target_data EthanolConcentration
+  

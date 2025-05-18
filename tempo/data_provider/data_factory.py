@@ -91,6 +91,6 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
             drop_last=drop_last,
-            # collate_fn=lambda x: collate_fn(x,args.enc_in)
+            collate_fn=lambda x: collate_fn(x,args.enc_in)
         )
         return data_set, data_loader

@@ -8,7 +8,7 @@ else
   seq_len=29
 fi
   
-    python -u train_TEMPO.py \
+    python -u generate_vis_embed_offline.py \
   --task_name classification \
   --config_path ./configs/multiple_datasets.yml \
   --datasets JapaneseVowels\
@@ -19,7 +19,7 @@ fi
   --model TEMPO \
   --data JapaneseVowels \
   --e_layers 3 \
-  --batch_size 8 \
+  --batch_size 1 \
   --d_model 768 \
   --d_ff 256 \
   --itr 1 \
@@ -28,10 +28,8 @@ fi
   --train_epochs 10 \
   --patience 5 \
   --enc_in $enc_in \
-  --vision 0 \
-  --create_offline_vision 0 \
+  --create_offline_vision 1 \
+  --vision 1 \
   --use_components 0 \
-  --target_data Heartbeat \
-  --prompt 1 \
-  --take_vis_by_feature 1 \
-  --all_components 0 
+  --target_data JapaneseVowels
+  

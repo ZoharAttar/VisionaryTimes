@@ -21,8 +21,8 @@ def collate_fn(data, max_len=None):
     """
 
     batch_size = len(data)
-    features, labels, x_trend, x_seasonal, x_resid, _, _, _ = zip(*data)
-
+    features, labels, x_trend, x_seasonal, x_resid, vis_trend, vis_season, vis_noise = zip(*data)
+    # TODO: process also vis components
     # Stack and pad features and masks (convert 2D to 3D tensors, i.e. add batch dimension)
     lengths = [X.shape[0] for X in features]  # original sequence length for each time series
     if max_len is None:
@@ -46,7 +46,7 @@ def collate_fn(data, max_len=None):
     padding_masks = padding_mask(torch.tensor(lengths, dtype=torch.int16),
                                  max_len=max_len)  # (batch_size, padded_length) boolean tensor, "1" means keep
                                  
-    return X, targets, X_trend, X_seasonal, X_resid
+    return X, targets, X_trend, X_seasonal, X_resid, vis_trend, vis_season, vis_noise
 
 
 def padding_mask(lengths, max_len=None):

@@ -28,4 +28,12 @@ fi
   --train_epochs 10 \
   --patience 5 \
   --enc_in $enc_in \
-  --patch_size 8
+  --vision 0 \
+  --create_offline_vision 0 \
+  --use_components 0 \
+  --target_data Heartbeat \
+  --prompt 1 \
+  --take_vis_by_feature 1 \
+  --all_components 0 \
+  --patch_size 1 \
+  --stride 4

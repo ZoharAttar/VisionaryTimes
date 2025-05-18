@@ -1255,11 +1255,12 @@ class UEAloader(Dataset):
         self.all_IDs = self.all_df.index.unique()  # all sample IDs (integer indices 0 ... num_samples-1)
 
         try:
-            trend_path = f'./Pics_embed/{data_name.lower()}_trend_embedding_{flag.lower()}_{self.take_vis_by_feature}.pth'
-            season_path = f'./Pics_embed/{data_name.lower()}_season_embedding_{flag.lower()}_{self.take_vis_by_feature}.pth'
-            noise_path = f'./Pics_embed/{data_name.lower()}_noise_embedding_{flag.lower()}_{self.take_vis_by_feature}.pth'
+            trend_path = f'./Pics_embed/{self.data_name.lower()}_trend_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
+            season_path = f'./Pics_embed/{self.data_name.lower()}_season_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
+            noise_path = f'./Pics_embed/{self.data_name.lower()}_noise_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
 
             if os.path.exists(trend_path):
+                print(trend_path)
                 self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
                 print(f"trend shape: {self.trend_vis_embed.shape}")
 
