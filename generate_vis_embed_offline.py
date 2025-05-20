@@ -128,7 +128,7 @@ def _combine_datasets(datasets):
         combined = torch.utils.data.ConcatDataset([combined, dataset])
     return combined
 
-def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader_type):
+def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader_type, vis_encoder_name):
     """Compute embeddings using TEMPO's vision-based method."""
     model.eval()
     os.makedirs(save_dir, exist_ok=True)
@@ -144,13 +144,11 @@ def compute_vision_embeddings(model, data_loader, device, save_dir, data, loader
     trend_tensor = torch.stack(trend_list).unsqueeze(1)
     season_tensor = torch.stack(season_list).unsqueeze(1)
     noise_tensor = torch.stack(noise_list).unsqueeze(1)
-    # print(trend_tensor.shape)
     data = data.lower()
-    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_trend_embedding_{loader_type}.pth'))
-    # print(f'{data}_trend_embedding_{loader_type}.pth')
-    torch.save(season_tensor, os.path.join(save_dir, f'{data}_season_embedding_{loader_type}.pth'))
-    torch.save(noise_tensor, os.path.join(save_dir, f'{data}_noise_embedding_{loader_type}.pth'))
-    print(f"Vision embeddings saved in {save_dir}")
+    torch.save(trend_tensor, os.path.join(save_dir, f'{data}_{vis_encoder_name}_trend_embedding_{loader_type}.pth'))
+    torch.save(season_tensor, os.path.join(save_dir, f'{data}_{vis_encoder_name}_season_embedding_{loader_type}.pth'))
+    torch.save(noise_tensor, os.path.join(save_dir, f'{data}_{vis_encoder_name}_noise_embedding_{loader_type}.pth'))
+    print(f"Vision of {data}_{vis_encoder_name} embeddings saved in {save_dir}")
 
 
 # --- Main Execution ---
@@ -212,9 +210,11 @@ parser.add_argument('--traffic_multiplier', type=int, default=1) # Multiplier fo
 parser.add_argument('--embed', type=str, default='timeF') # Type of embedding used (e.g., timeF for time-frequency embeddings).
 parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether vision-based models are used (1 = Yes, 0 = No).
 parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
+parser.add_argument('--vis_encoder_name', type=str, default= 'CLIP')
 parser.add_argument("--save_dir", type=str, default="/home/arielsi/VisionaryTimes/Pics_embed")
 parser.add_argument('--create_offline_vision', type=int, default=1) 
 parser.add_argument('--use_components', type=int, default=1)
+parser.add_argument('--show_plot', type=int, default=0)
 
 args = parser.parse_args()
 config = get_init_config(args.config_path)
@@ -226,11 +226,11 @@ train_data, train_loader, test_data, test_loader, val_data, val_loader = prepare
 
 # train_data, train_loader, test_data, test_loader = prepare_data_loaders(args, config)[0:4]
 
-# Compute vision embeddings for train
-compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train")
+# # Compute vision embeddings for train
+compute_vision_embeddings(model, train_loader, device, args.save_dir, args.target_data, "train", args.vis_encoder_name)
 
 # Compute vision embeddings for validation
-compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val")
+compute_vision_embeddings(model, val_loader, device, args.save_dir, args.target_data, "val", args.vis_encoder_name)
 
 # Compute vision embeddings for test
-compute_vision_embeddings(model, test_loader, device, args.save_dir, args.target_data, "test")
+compute_vision_embeddings(model, test_loader, device, args.save_dir, args.target_data, "test", args.vis_encoder_name)

@@ -54,7 +54,8 @@ def data_provider(args, flag, drop_last_test=True, train_all=False):
         percent=percent,
         max_len=max_len,
         train_all=train_all,
-        data_name = args.data_name
+        data_name = args.data_name,
+        vis_encoder_name = args.vis_encoder_name,
     )
     
     # print(flag, len(data_set))

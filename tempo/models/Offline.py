@@ -8,6 +8,10 @@ from einops import rearrange
 from tempo.embed import DataEmbedding, DataEmbedding_wo_time
 from transformers.models.gpt2.configuration_gpt2 import GPT2Config
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from torchvision import models, transforms
+from transformers import AutoProcessor, AutoModel
+import torchvision.transforms as T
+from transformers import SiglipModel, SiglipProcessor, SiglipVisionModel
 from tempo.utils.rev_in import RevIn
 from peft import get_peft_config, PeftModel, PeftConfig, get_peft_model, LoraConfig, TaskType
 from huggingface_hub import hf_hub_download
@@ -16,6 +20,7 @@ import warnings
 from omegaconf import OmegaConf
 import torch.nn.functional as F
 import clip
+import timm  
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -105,13 +110,33 @@ class TEMPO(nn.Module):
         self.device = device
         self.vision = configs.vision
         self.use_components = configs.use_components
+        self.show_plot = configs.show_plot
+        self.vis_encoder_name = configs.vis_encoder_name
 
         ############--adding vision support--#################    
         if self.vision:
-            self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
-            self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-            self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-            self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+            if self.vis_encoder_name == "CLIP":
+                self.vis_encoder_dim = 512
+                self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+
+            elif self.vis_encoder_name == "ViT":
+                self.vis_encoder_dim = 384
+                self.vision_encoder = timm.create_model('vit_small_patch16_224', pretrained=True)  # Loads pretrained ViT (small) with 16x16 patch size.
+                self.vision_encoder.reset_classifier(0) # Removes the classification head to get raw image features.
+                self.vision_encoder_preprocess = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])]) # Standard preprocessing for ViT models from timm (RGB normalized to [-1, 1]).
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                  
+                
+                 
         ############--adding vision support--#################    
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)
@@ -472,7 +497,7 @@ class TEMPO(nn.Module):
             else:
                 return x
             
-    def create_image(self, x_local, type, dataset, show_plot=False):
+    def create_image(self, x_local, type, dataset):
         """
         Plots a time series and returns it as a normalized image tensor.
 
@@ -485,10 +510,8 @@ class TEMPO(nn.Module):
         Returns:
             Tensor: Image tensor (e.g., for CLIP)
         """
-
-        save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
-        os.makedirs(save_dir, exist_ok=True)
-
+        # save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+        
         # Initialize counters if they don't exist
         if not hasattr(self, 'trend_plot_counter'):
             self.trend_plot_counter = 0
@@ -496,24 +519,17 @@ class TEMPO(nn.Module):
             self.season_plot_counter = 0
         if not hasattr(self, 'residual_plot_counter'):
             self.residual_plot_counter = 0
-
-        images = []
-
-        # Check if x_local is a NumPy array or a single value
-        if isinstance(x_local, np.ndarray) or np.isscalar(x_local):
-            # Create a batch of size 1 to maintain compatibility
+        
+        images = [] 
+        if isinstance(x_local, np.ndarray) or np.isscalar(x_local): # Check if x_local is a NumPy
             if np.isscalar(x_local):
                 # If it's a single value, convert to a 1D array
                 time_series = np.array([x_local])
             else:
                 # If it's already an array, use it directly
                 time_series = x_local
-                
             time_steps = range(len(time_series))
-            
             fig, ax = plt.subplots(figsize=(5, 5))
-            
-            # Plot and update based on type
             if type == 'Trend':
                 counter = self.trend_plot_counter
                 label = f"{dataset} Plot {type}_{counter + 1}"
@@ -524,7 +540,7 @@ class TEMPO(nn.Module):
                 label = f"{dataset} Plot {type}_{counter + 1}"
                 filename = f"{label}.png"
                 self.season_plot_counter += 1
-            else:  # Residual or any fallback
+            else:  # Residual 
                 counter = self.residual_plot_counter
                 label = f"{dataset} Plot {type}_{counter + 1}"
                 filename = f"{label}.png"
@@ -533,15 +549,21 @@ class TEMPO(nn.Module):
             ax.plot(time_steps, time_series, label=label)
             ax.set_xlabel("Time Step")
             ax.set_ylabel("Value")
-            ax.set_title(label)
+            # ax.set_title(label)
             ax.legend()
             
-            show_plot = True 
-            if show_plot:
+            if self.use_components == 0:
+                save_dir = '/home/arielsi/VisionaryTimes/plot_pics_no_components'
+                os.makedirs(save_dir, exist_ok=True)
+            else:
+                save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+                os.makedirs(save_dir, exist_ok=True)
+
+            # show_plot = True 
+            if self.show_plot == 1 and (counter % 1000 == 0): 
                 plt.show()
-            
-            save_path = os.path.join(save_dir, filename)
-            fig.savefig(save_path)
+                save_path = os.path.join(save_dir, filename)
+                fig.savefig(save_path)
             
             # Save into buffer
             buf = BytesIO()
@@ -561,8 +583,6 @@ class TEMPO(nn.Module):
                 time_steps = range(len(time_series))
 
                 fig, ax = plt.subplots(figsize=(5, 5))
-
-                # Plot and update based on type
                 if type == 'Trend':
                     counter = self.trend_plot_counter
                     label = f"{dataset} Plot {type}_{counter + 1}"
@@ -573,7 +593,7 @@ class TEMPO(nn.Module):
                     label = f"{dataset} Plot {type}_{counter + 1}"
                     filename = f"{label}.png"
                     self.season_plot_counter += 1
-                else:  # Residual or any fallback
+                else:  # Residual 
                     counter = self.residual_plot_counter
                     label = f"{dataset} Plot {type}_{counter + 1}"
                     filename = f"{label}.png"
@@ -582,14 +602,20 @@ class TEMPO(nn.Module):
                 ax.plot(time_steps, time_series, label=label)
                 ax.set_xlabel("Time Step")
                 ax.set_ylabel("Value")
-                ax.set_title(label)
+                # ax.set_title(label)
                 ax.legend()
                 
-                if show_plot:
-                    plt.show()
+                if self.use_components == 0:
+                    save_dir = '/home/arielsi/VisionaryTimes/plot_pics_no_components'
+                    os.makedirs(save_dir, exist_ok=True)
+                else:
+                    save_dir = '/home/arielsi/VisionaryTimes/plot_pics'
+                    os.makedirs(save_dir, exist_ok=True)
 
-                save_path = os.path.join(save_dir, filename)
-                fig.savefig(save_path)
+                if self.show_plot == 1 and (counter % 1000 == 0):
+                    plt.show()
+                    save_path = os.path.join(save_dir, filename)
+                    fig.savefig(save_path)
 
                 # Save into buffer
                 buf = BytesIO()
@@ -609,7 +635,13 @@ class TEMPO(nn.Module):
     def vision_embed(self, image, type='Trend'):
         # Process image and compute its embedding
         with torch.no_grad():
-            image_embed_vec = self.vision_encoder.encode_image(image)
+            if self.vis_encoder_name == "CLIP":
+                image_embed_vec = self.vision_encoder.encode_image(image)
+            elif self.vis_encoder_name == "SigLIP":
+                outputs = self.vision_encoder(image)
+                image_embed_vec = outputs.last_hidden_state.mean(dim=1)
+            else:
+                image_embed_vec = self.vision_encoder(image)
         image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
         return image_embed_vec
     
@@ -631,16 +663,20 @@ class TEMPO(nn.Module):
             # Compute trend, season, and noise components
             x_cpu = x.cpu().numpy()
             x_cpu = x_cpu.flatten()
-            components = STL(x_cpu, period=24).fit()
+
+            if 'weather' in data: # == 'weather':
+                components = STL(x_cpu, period = 24*6).fit()
+            elif 'ill' in data: #== :
+                components = STL(x_cpu, period = 7).fit()
+            elif 'etth1' in data or 'etth2' in data:
+                components = STL(x_cpu, period = 24).fit()
+            else:
+                components = STL(x_cpu, period = 24*2).fit()
+
+            # components = STL(x_cpu, period=24).fit()
             trend_local = components.trend
             season_local = components.seasonal
             noise_local = components.resid
-
-            # trend_local = self.moving_avg(x)
-            # trend_local = self.map_trend(trend_local.squeeze(2)).unsqueeze(2)
-            # season_local = x - trend_local
-            # season_local = self.map_season(season_local.squeeze(2)).unsqueeze(2)
-            # noise_local = x - trend_local - season_local
             
             # -------------if vis will be local for every patch (and not global)--------------
             # trend = self.get_patch(trend_local) # 4, 64, 16

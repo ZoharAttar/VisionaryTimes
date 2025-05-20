@@ -13,7 +13,7 @@
 # export CUDA_VISIBLE_DEVICES=2
 
 seq_len=512
-model=TEMPO #TEMPO #PatchTST 
+model=TEMPO #TEMPO #PatchTST #_multi
 electri_multiplier=1
 traffic_multiplier=1
 
@@ -26,7 +26,7 @@ for tmax in 20
 do
 for lr in 0.001 
 do
-for gpt_layer in 3 
+for gpt_layer in 6 
 do
 for equal in 1 
 do
@@ -47,7 +47,7 @@ python train_TEMPO.py \
     --stl_weight 0.001 \
     --equal $equal \
     --checkpoint ./lora_revin_6domain_checkpoints'_'$prompt/ \
-    --model_id etth1_TEMPO'_'$gpt_layer'_'prompt_learn'_'$seq_len'_'$pred_len'_'$percent \
+    --model_id ETTh2_TEMPO'_'$gpt_layer'_'prompt_learn'_'$seq_len'_'$pred_len'_'$percent \
     --electri_multiplier $electri_multiplier \
     --traffic_multiplier $traffic_multiplier \
     --seq_len $seq_len \
@@ -66,14 +66,19 @@ python train_TEMPO.py \
     --c_out 1 \
     --patch_size 16 \
     --stride 8 \
+    --vis_encoder_dim 512 \
+    --vision 1 \
     --gpt_layer $gpt_layer \
     --itr 3 \
     --model $model \
     --tmax $tmax \
     --cos 1 \
-    --use_token 1\
-    --vision 1 \
+    --use_token 0\
     --is_gpt 1 #>> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
+    
+
+
+    
 
 
 done

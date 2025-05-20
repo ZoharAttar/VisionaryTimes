@@ -46,6 +46,7 @@ class Dataset_Monash(Dataset):
         self.root_path = root_path
         self.data_path = data_path
         self.data_name = data_name
+
         self.__read_data__()
 
        
@@ -129,7 +130,7 @@ class Dataset_ETT_hour(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
                  target='OT', scale=True, timeenc=0, freq='h', 
-                 percent=100, data_name = 'etth2', max_len=-1, train_all=False):
+                 percent=100, data_name = 'etth2', max_len=-1, train_all=False, vis_encoder_name = 'CLIP'):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -155,6 +156,8 @@ class Dataset_ETT_hour(Dataset):
         self.root_path = root_path
         self.data_path = data_path
         self.data_name = data_name
+        self.vis_encoder_name = vis_encoder_name
+
         self.__read_data__()
 
         self.enc_in = self.data_x.shape[-1]
@@ -163,10 +166,9 @@ class Dataset_ETT_hour(Dataset):
         self.tot_len = len(self.data_x) - self.seq_len - self.pred_len + 1
         
         try:
-            trend_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_trend_embedding_{flag}.pth'
-            season_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_season_embedding_{flag}.pth'
-            noise_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_noise_embedding_{flag}.pth'
-            
+            trend_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_{vis_encoder_name}_trend_embedding_{flag}.pth'
+            season_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_{vis_encoder_name}_season_embedding_{flag}.pth'
+            noise_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_{vis_encoder_name}_noise_embedding_{flag}.pth'
             print(trend_path)
             print(season_path)
             print(noise_path)
@@ -174,25 +176,21 @@ class Dataset_ETT_hour(Dataset):
             if os.path.exists(trend_path):
                 self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
                 # print(f"trend shape: {self.trend_vis_embed.shape}, dataset length: {self.__len__()}")
-
             else:
                 self.trend_vis_embed = None
             if os.path.exists(season_path):
                 self.season_vis_embed = torch.load(season_path, map_location='cpu')
                 # print(f"season shape: {self.season_vis_embed.shape}, dataset length: {self.__len__()}")
-
             else:
                 self.season_vis_embed = None
             if os.path.exists(noise_path):
                 self.noise_vis_embed = torch.load(noise_path, map_location='cpu')
                 # print(f"noise shape: {self.noise_vis_embed.shape}, dataset length: {self.__len__()}")
-
             else:
                 self.noise_vis_embed = None
         except Exception as e:
             print(f"Skipping vision embedding load due to: {e}")
             pass
-        
         # print(self.seq_len, self.pred_len)
 
     def stl_resolve(self, data_raw, data_name):
@@ -322,8 +320,13 @@ class Dataset_ETT_hour(Dataset):
         # print('#1', self.trend_vis_embed.shape)
         # print('#2', self.season_vis_embed.shape)
         # print('#3', self.noise_vis_embed.shape)
-
-        dummy_shape = (1, 512)
+        if self.vis_encoder_name == 'CLIP':
+            dummy_shape = (1, 512)
+        elif self.vis_encoder_name == 'ViT':
+            dummy_shape = (1, 384)
+        else:
+            dummy_shape = (1, 512)
+            
         if self.trend_vis_embed is not None:
             my_trend_vis_embed = self.trend_vis_embed[index]
         else:
@@ -379,6 +382,7 @@ class Dataset_ETT_minute(Dataset):
         self.root_path = root_path
         self.data_path = data_path
         self.data_name = data_name
+
         self.__read_data__()
 
         self.enc_in = self.data_x.shape[-1]
@@ -387,22 +391,23 @@ class Dataset_ETT_minute(Dataset):
             trend_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_trend_embedding_{flag}.pth'
             season_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_season_embedding_{flag}.pth'
             noise_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_noise_embedding_{flag}.pth'
+            print(trend_path)
+            print(season_path)
+            print(noise_path)
+
             if os.path.exists(trend_path):
                 self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
                 # print(f"trend shape: {self.trend_vis_embed.shape}, dataset length: {self.__len__()}")
-
             else:
                 self.trend_vis_embed = None
             if os.path.exists(season_path):
                 self.season_vis_embed = torch.load(season_path, map_location='cpu')
                 # print(f"season shape: {self.season_vis_embed.shape}, dataset length: {self.__len__()}")
-
             else:
                 self.season_vis_embed = None
             if os.path.exists(noise_path):
                 self.noise_vis_embed = torch.load(noise_path, map_location='cpu')
                 # print(f"noise shape: {self.noise_vis_embed.shape}, dataset length: {self.__len__()}")
-
             else:
                 self.noise_vis_embed = None
         except Exception as e:
@@ -592,11 +597,41 @@ class Dataset_Custom(Dataset):
         self.root_path = root_path
         self.data_path = data_path
         self.data_name = data_name
+        
         self.__read_data__()
         
         self.enc_in = self.data_x.shape[-1]
         self.tot_len = len(self.data_x) - self.seq_len - self.pred_len + 1
         # self.save_stl = 'stl/' 
+
+        try:
+            trend_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_trend_embedding_{flag}.pth'
+            season_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_season_embedding_{flag}.pth'
+            noise_path = f'/home/arielsi/VisionaryTimes/Pics_embed/{data_name}_noise_embedding_{flag}.pth'
+            print(trend_path)
+            print(season_path)
+            print(noise_path)
+
+            if os.path.exists(trend_path):
+                self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
+                # print(f"trend shape: {self.trend_vis_embed.shape}, dataset length: {self.__len__()}")
+            else:
+                self.trend_vis_embed = None
+            if os.path.exists(season_path):
+                self.season_vis_embed = torch.load(season_path, map_location='cpu')
+                # print(f"season shape: {self.season_vis_embed.shape}, dataset length: {self.__len__()}")
+            else:
+                self.season_vis_embed = None
+            if os.path.exists(noise_path):
+                self.noise_vis_embed = torch.load(noise_path, map_location='cpu')
+                # print(f"noise shape: {self.noise_vis_embed.shape}, dataset length: {self.__len__()}")
+            else:
+                self.noise_vis_embed = None
+        except Exception as e:
+            print(f"Skipping vision embedding load due to: {e}")
+            pass
+        
+        # print(self.seq_len, self.pred_len)
      
 
     def stl_resolve(self, data_raw):
@@ -737,7 +772,25 @@ class Dataset_Custom(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_trend, seq_seasonal, seq_resid
+        dummy_shape = (1, 512)
+        if self.trend_vis_embed is not None:
+            my_trend_vis_embed = self.trend_vis_embed[index]
+        else:
+            my_trend_vis_embed = torch.zeros(dummy_shape)
+
+        if self.season_vis_embed is not None:
+            my_season_vis_embed = self.season_vis_embed[index]
+        else:
+            my_season_vis_embed = torch.zeros(dummy_shape)
+
+        if self.noise_vis_embed is not None:
+            my_noise_vis_embed = self.noise_vis_embed[index]
+        else:
+            my_noise_vis_embed = torch.zeros(dummy_shape)
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_trend, seq_seasonal, seq_resid, my_trend_vis_embed, my_season_vis_embed, my_noise_vis_embed
+
+        # return seq_x, seq_y, seq_x_mark, seq_y_mark, seq_trend, seq_seasonal, seq_resid
 
     def __len__(self):
         # return 1000 #(

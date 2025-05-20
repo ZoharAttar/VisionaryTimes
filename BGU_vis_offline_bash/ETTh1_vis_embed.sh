@@ -19,7 +19,6 @@ train_epochs=10
 learning_rate=0.001
 patience=5
 save_dir="/home/arielsi/VisionaryTimes/Pics_embed"
-pred_len=96
 seq_len=512 
 
 
@@ -41,22 +40,21 @@ python generate_vis_embed_offline.py \
     --learning_rate $learning_rate \
     --patience $patience \
     --model $model \
-    --vision 1 \
     --save_dir $save_dir \
     --datasets $datasets \
     --target_data $target_data \
     --eval_data $eval_data \
-    --create_offline_vision 1\
     --model "TEMPO" \
     --batch_size 1 \
     --train_epochs 10 \
     --learning_rate 0.001 \
     --patience 5 \
-    --save_dir "/home/arielsi/VisionaryTimes/Pics_embed" \
-    --pred_len 96 \
     --seq_len 512 \
     --datasets ETTh1\
     --target_data ETTh1\
     --eval_data ETTh1\
     --use_components 1\
-    # >> $log_file 2>&1
+    --show_plot 0\
+    --vis_encoder_name "ViT"\
+    --vision 1 \
+

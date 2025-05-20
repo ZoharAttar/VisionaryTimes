@@ -18,7 +18,8 @@ batch_size=1
 train_epochs=10
 learning_rate=0.001
 patience=5
-save_dir="/home/arielsi/VisionaryTimes/Pics_embed"
+# save_dir="/home/arielsi/VisionaryTimes/Pics_embed"
+save_dir="/home/arielsi/VisionaryTimes/plot_pics_no_components"
 pred_len=96
 seq_len=512 
 
@@ -52,10 +53,12 @@ python generate_vis_embed_offline.py \
     --train_epochs 10 \
     --learning_rate 0.001 \
     --patience 5 \
-    --save_dir "/home/arielsi/VisionaryTimes/Pics_embed" \
     --pred_len 96 \
     --seq_len 512 \
     --datasets ETTm1\
     --target_data ETTm1\
     --eval_data ETTm1\
+    --use_components 0\
+    --show_plot 1\
+
     # >> $log_file 2>&1
