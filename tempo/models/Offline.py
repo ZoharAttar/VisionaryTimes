@@ -134,9 +134,21 @@ class TEMPO(nn.Module):
                 self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
                 self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
                 self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+
+            elif self.vis_encoder_name == "DeiT-Tiny":  # Data-efficient Image Transformer (DeiT) - Tiny variant
+                self.vis_encoder_dim = 192
+                self.vision_encoder = timm.create_model('deit_tiny_patch16_224', pretrained=True)
+                self.vision_encoder.reset_classifier(0)
+                self.vision_encoder_preprocess = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])  # Matches DeiT training normalization
+                ])
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
                   
-                
-                 
         ############--adding vision support--#################    
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)

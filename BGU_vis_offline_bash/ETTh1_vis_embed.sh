@@ -55,6 +55,7 @@ python generate_vis_embed_offline.py \
     --eval_data ETTh1\
     --use_components 1\
     --show_plot 0\
-    --vis_encoder_name "ViT"\
+    --vis_encoder_name "DeiT-Tiny"\
+    --vis_encoder_dim 192 \
     --vision 1 \
 

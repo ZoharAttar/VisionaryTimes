@@ -196,6 +196,7 @@ parser.add_argument('--traffic_multiplier', type=int, default=1) # Multiplier fo
 parser.add_argument('--embed', type=str, default='timeF') # Type of embedding used (e.g., timeF for time-frequency embeddings).
 parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether vision-based models are used (1 = Yes, 0 = No).
 parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
+parser.add_argument('--vis_encoder_name', type=str, default= 'CLIP')
 parser.add_argument('--create_offline_vision', type=int, default=0) # Dimensionality of the vision encoder.
 parser.add_argument('--use_components', type=int, default=1)
 parser.add_argument('--show_plot', type=int, default=0)

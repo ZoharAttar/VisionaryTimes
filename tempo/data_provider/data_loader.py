@@ -324,6 +324,8 @@ class Dataset_ETT_hour(Dataset):
             dummy_shape = (1, 512)
         elif self.vis_encoder_name == 'ViT':
             dummy_shape = (1, 384)
+        elif self.vis_encoder_name == 'DeiT-Tiny':
+            dummy_shape = (1, 192)
         else:
             dummy_shape = (1, 512)
             
@@ -347,10 +349,9 @@ class Dataset_ETT_hour(Dataset):
     def __len__(self):
         return (len(self.data_x) - self.seq_len - self.pred_len + 1) * self.enc_in
 
-    
-
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
+
 
 class Dataset_ETT_minute(Dataset):
     def __init__(self, root_path, flag='train', size=None,

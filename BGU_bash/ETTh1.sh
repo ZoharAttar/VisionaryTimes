@@ -40,7 +40,7 @@ echo logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equ
 
 
 python train_TEMPO.py \
-    --datasets ETTh2 \
+    --datasets ETTh1 \
     --target_data ETTh1 \
     --eval_data ETTh1\
     --config_path ./configs/multiple_datasets.yml \
@@ -66,15 +66,18 @@ python train_TEMPO.py \
     --c_out 1 \
     --patch_size 16 \
     --stride 8 \
-    --vis_encoder_dim 512 \
     --vision 1 \
+    --vis_encoder_name "DeiT-Tiny"\
+    --vis_encoder_dim 192 \
     --gpt_layer $gpt_layer \
     --itr 3 \
     --model $model \
     --tmax $tmax \
     --cos 1 \
     --use_token 0\
-    --is_gpt 1 #>> logs/$model/loar_revin_$percent'_'percent'_'$prompt'_'prompt'_'equal'_'$equal/ettm2_pmt1_no_pool_$model'_'$gpt_layer/test'_'$seq_len'_'$pred_len'_lr'$lr.log
+    --is_gpt 1 \
+    --use_components 1\
+    --show_plot 0\
     
 
 

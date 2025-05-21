@@ -125,6 +125,18 @@ def load_encoder(encoder_name):
 
         return vit_model, preprocess
     
+    elif encoder_name == "DeiT-Tiny":  # Data-efficient Image Transformer (DeiT) - Tiny variant
+        deit_tiny = timm.create_model('deit_tiny_patch16_224', pretrained=True)
+        deit_tiny.reset_classifier(0)
+        deit_tiny.to(device).eval()
+        preprocess = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                 std=[0.5, 0.5, 0.5])  # Matches DeiT training normalization
+        ])
+        return deit_tiny, preprocess
+    
     elif encoder_name == "ResNet": #a CNN that uses skip connections to train, helping to prevent vanishing gradients.
         resnet = models.resnet50(pretrained=True)
         resnet.fc = torch.nn.Identity()
@@ -239,7 +251,10 @@ def evaluate_clustering(embeddings, labels, encoder_name):
 # generate_and_save_plots()
 
 # Step 2: For each encoder, generate embeddings and plot similarity
-for encoder_name in ['CLIP', 'ViT','ResNet', 'DINOv2', 'SigLIP']:
+
+# for encoder_name in ['CLIP', 'ViT','ResNet', 'DINOv2', 'SigLIP']:
+for encoder_name in ['DeiT-Tiny']:
+
     print(f"Processing encoder: {encoder_name}")
     embeddings, labels = generate_embeddings_from_saved_plots(encoder_name)
     

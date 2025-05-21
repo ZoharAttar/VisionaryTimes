@@ -18,9 +18,7 @@ batch_size=1
 train_epochs=10
 learning_rate=0.001
 patience=5
-# save_dir="/home/arielsi/VisionaryTimes/Pics_embed"
-save_dir="/home/arielsi/VisionaryTimes/plot_pics_no_components"
-pred_len=96
+save_dir="/home/arielsi/VisionaryTimes/Pics_embed"
 seq_len=512 
 
 
@@ -42,22 +40,21 @@ python generate_vis_embed_offline.py \
     --learning_rate $learning_rate \
     --patience $patience \
     --model $model \
-    --vision 1 \
     --save_dir $save_dir \
     --datasets $datasets \
     --target_data $target_data \
     --eval_data $eval_data \
-    --create_offline_vision 1\
     --model "TEMPO" \
     --batch_size 1 \
     --train_epochs 10 \
     --learning_rate 0.001 \
     --patience 5 \
-    --pred_len 96 \
     --seq_len 512 \
     --datasets ETTh2\
     --target_data ETTh2\
     --eval_data ETTh2\
-    --use_components 0\
-    --show_plot 1\
-    # >> $log_file 2>&1
+    --use_components 1\
+    --show_plot 0\
+    --vis_encoder_name "DeiT-Tiny"\
+    --vis_encoder_dim 192 \
+    --vision 1 \

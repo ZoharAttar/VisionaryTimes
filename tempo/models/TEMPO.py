@@ -8,6 +8,10 @@ from einops import rearrange
 from tempo.embed import DataEmbedding, DataEmbedding_wo_time
 from transformers.models.gpt2.configuration_gpt2 import GPT2Config
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from torchvision import models, transforms
+from transformers import AutoProcessor, AutoModel
+import torchvision.transforms as T
+from transformers import SiglipModel, SiglipProcessor, SiglipVisionModel
 from tempo.utils.rev_in import RevIn
 from peft import get_peft_config, PeftModel, PeftConfig, get_peft_model, LoraConfig, TaskType
 from huggingface_hub import hf_hub_download
@@ -16,6 +20,7 @@ import warnings
 from omegaconf import OmegaConf
 import torch.nn.functional as F
 import clip
+import timm  
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -100,20 +105,47 @@ class TEMPO(nn.Module):
         # self.mlp = configs.mlp
         self.device = device
         self.vision = configs.vision
+        self.vis_encoder_name = configs.vis_encoder_name
         self.use_components = configs.use_components
         self.show_plot = configs.show_plot
 
-        ############--adding vision support--#################    
+############--adding vision support--#################    
         if self.vision:
-            self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
-            self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-            self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-            self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+            if self.vis_encoder_name == "CLIP":
+                self.vis_encoder_dim = 512
+                self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
 
-        # self.d_vis_layer_trend = nn.Linear(configs.d_model, configs.d_model)
-        # self.d_vis_layer_season = nn.Linear(configs.d_model, configs.d_model)
-        # self.d_vis_layer_noise = nn.Linear(configs.d_model, configs.d_model)
-        ############--adding vision support--#################    
+            elif self.vis_encoder_name == "ViT":
+                self.vis_encoder_dim = 384
+                self.vision_encoder = timm.create_model('vit_small_patch16_224', pretrained=True)  # Loads pretrained ViT (small) with 16x16 patch size.
+                self.vision_encoder.reset_classifier(0) # Removes the classification head to get raw image features.
+                self.vision_encoder_preprocess = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])]) # Standard preprocessing for ViT models from timm (RGB normalized to [-1, 1]).
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+
+            elif self.vis_encoder_name == "DeiT-Tiny":  # Data-efficient Image Transformer (DeiT) - Tiny variant
+                self.vis_encoder_dim = 192
+                self.vision_encoder = timm.create_model('deit_tiny_patch16_224', pretrained=True)
+                self.vision_encoder.reset_classifier(0)
+                self.vision_encoder_preprocess = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])  # Matches DeiT training normalization
+                ])
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                  
+        ############--adding vision support--#################        
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)
         self.map_season  = nn.Sequential(
