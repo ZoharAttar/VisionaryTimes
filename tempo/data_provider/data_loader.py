@@ -1259,20 +1259,20 @@ class UEAloader(Dataset):
             season_path = f'./Pics_embed/{self.data_name.lower()}_season_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
             noise_path = f'./Pics_embed/{self.data_name.lower()}_noise_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
 
-            if os.path.exists(trend_path):
+            if os.path.exists(trend_path) and self.vision:
                 print(trend_path)
                 self.trend_vis_embed = torch.load(trend_path, map_location='cpu')
                 print(f"trend shape: {self.trend_vis_embed.shape}")
 
             else:
                 self.trend_vis_embed = None
-            if os.path.exists(season_path):
+            if os.path.exists(season_path) and self.vision:
                 self.season_vis_embed = torch.load(season_path, map_location='cpu')
                 print(f"season shape: {self.season_vis_embed.shape}")
 
             else:
                 self.season_vis_embed = None
-            if os.path.exists(noise_path):
+            if os.path.exists(noise_path) and self.vision:
                 self.noise_vis_embed = torch.load(noise_path, map_location='cpu')
                 print(f"noise shape: {self.noise_vis_embed.shape}")
 

@@ -32,6 +32,9 @@ def collate_fn(data, max_len=None):
     X_resid = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
     X_trend = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
     X_seasonal = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
+    vis_trend = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
+    vis_season = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
+    vis_noise = torch.zeros(batch_size, max_len, features[0].shape[-1])  # (batch_size, padded_length, feat_dim)
     
     for i in range(batch_size):
         end = min(lengths[i], max_len)
@@ -39,13 +42,16 @@ def collate_fn(data, max_len=None):
         X_trend[i, :end, :] = torch.from_numpy(x_trend[i][:end, :])
         X_seasonal[i, :end, :] = torch.from_numpy(x_seasonal[i][:end, :])
         X_resid[i, :end, :] = torch.from_numpy(x_resid[i][:end, :])
+        vis_trend[i, :end, :] = vis_trend[i][:end, :]
+        vis_season[i, :end, :] = vis_season[i][:end, :]
+        vis_noise[i, :end, :] = vis_noise[i][:end, :]
 
     # targets = torch.stack(torch.from_numpy(labels), dim=0)  # (batch_size, num_labels)
     targets = torch.tensor(labels)
 
     padding_masks = padding_mask(torch.tensor(lengths, dtype=torch.int16),
                                  max_len=max_len)  # (batch_size, padded_length) boolean tensor, "1" means keep
-                                 
+                    
     return X, targets, X_trend, X_seasonal, X_resid, vis_trend, vis_season, vis_noise
 
 

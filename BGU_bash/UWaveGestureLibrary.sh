@@ -31,9 +31,9 @@ fi
   --vision 0 \
   --create_offline_vision 0 \
   --use_components 0 \
-  --target_data Heartbeat \
+  --target_data UWaveGestureLibrary \
   --prompt 1 \
   --take_vis_by_feature 1 \
   --all_components 0 \
-  --patch_size 1 \
-  --stride 4
+  --patch_size 3 \
+  --stride 1

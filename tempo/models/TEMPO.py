@@ -426,10 +426,15 @@ class TEMPO(nn.Module):
         return x, means, stdev
     
     def get_patch(self, x):
+        # [1620, 61, 1]
         x = rearrange(x, 'b l m -> b m l')
+        # [1620, 1, 61]
         x = self.padding_patch_layer(x) # 4, 1, 420 | add stride to seq_len
+        # [1620, 1, 61 + stride]
         x = x.unfold(dimension=-1, size=self.patch_size, step=self.stride) #4,1, 64, 16 | patch size needs to be lower then seq_len+stride
+        # [1620, 1, 17, 1] ---> floor((65 - 1)/4) + 1 = 17 if stride=4
         x = rearrange(x, 'b m n p -> (b m) n p') # 4, 64, 16 [batch_size, number of patches, patch_size]
+        # [1620, 17, 1]
         return x
     
     def get_emb(self, x, tokens=None, type = 'Trend'):
@@ -560,8 +565,9 @@ class TEMPO(nn.Module):
 
     
     def forward(self, x, itr=0, trend=None, season=None, noise=None, vis_trend=None, vis_season=None, vis_noise=None, test=False):
-    
         if self.task_name == 'classification':
+            # perm = torch.randperm(x.size(2))  # indices to shuffle dim=2
+            # x = x[:, :, perm, :]
             # if self.ts_by_feature:
                 # [2, 405, 61, 1]
             
