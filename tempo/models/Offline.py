@@ -507,7 +507,7 @@ class TEMPO(nn.Module):
             else:
                 return x
             
-    def create_image(self, x_local, type, dataset, show_plot=False):
+    def create_image(self, x_local, type, dataset, show_plot=False, global_max=None):
         """
         Plots a time series and returns it as a normalized image tensor.
 
@@ -566,6 +566,7 @@ class TEMPO(nn.Module):
                 self.residual_plot_counter += 1
             
             ax.bar(time_steps, time_series, label=label)
+            # ax.set_ylim(0, global_max * 1.05)  # Add small margin
             ax.set_xlabel("Features")
             ax.set_ylabel("Features Values")
             # ax.set_title(label)
@@ -615,6 +616,7 @@ class TEMPO(nn.Module):
                     self.residual_plot_counter += 1
 
                 ax.bar(time_steps, time_series, label=label)
+                # ax.set_ylim(0, global_max * 1.05)  # Add small margin
                 ax.set_xlabel("Features")
                 ax.set_ylabel("Features Values")
                 # ax.set_title(label)
@@ -656,15 +658,15 @@ class TEMPO(nn.Module):
     
 
     @torch.no_grad()
-    def compute_vision_embeddings(self, x, save_dir="/Pics_embed", data = None):
+    def compute_vision_embeddings(self, x, save_dir="/Pics_embed", data = None, global_max= None):
         """Computes only the vision embeddings without running the full forward process."""
         os.makedirs(save_dir, exist_ok=True)  # Ensure save directory exists
         
         # B, L, M = x.shape  # Batch, Length, Features [[B,L,M]]
         if self.use_components == 0:
-            trend_image = self.create_image(x, 'Trend' , data)
-            # season_image = self.create_image(x, 'Season', data)
-            # noise_image = self.create_image(x, 'Residual', data)
+            trend_image = self.create_image(x, 'Trend' , data, False ,global_max)
+            # season_image = self.create_image(x, 'Season', data, False , global_max)
+            # noise_image = self.create_image(x, 'Residual', data, False , global_max)
             
         else:
             x = self.rev_in_trend(x, 'norm')
@@ -689,9 +691,9 @@ class TEMPO(nn.Module):
             # noise = self.get_patch(noise_local)
 
             # Create images from the components
-            trend_image = self.create_image(trend_local, 'Trend' , data)
-            season_image = self.create_image(season_local, 'Season', data)
-            noise_image = self.create_image(noise_local, 'Residual', data)
+            trend_image = self.create_image(trend_local, 'Trend' , data,False , global_max)
+            season_image = self.create_image(season_local, 'Season', data,False , global_max)
+            noise_image = self.create_image(noise_local, 'Residual', data,False , global_max)
         
         # Compute vision embeddings
         trend_embed = self.vision_embed(trend_image, 'Trend')

@@ -298,8 +298,6 @@ parser.add_argument('--embed', type=str, default='timeF') # Type of embedding us
 
 parser.add_argument('--vision', type=int, default=0) # Flag to indicate whether vision-based models are used (1 = Yes, 0 = No).
 
-parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
-
 parser.add_argument('--create_offline_vision', type=int, default=0) # Dimensionality of the vision encoder.
 
 parser.add_argument('--use_components', type=int, default=1) # use all 3 STL components to build offline vision embedding
@@ -307,7 +305,8 @@ parser.add_argument('--use_components', type=int, default=1) # use all 3 STL com
 parser.add_argument('--take_vis_by_feature', type=int, default=1) # Whether to take vis embedding created by cell (when ts_by_feature=0 61 vis per item) or by feature (when ts_by_feature=1 405 vis per item)
 
 parser.add_argument('--all_components', type=int, default=1) # use all 3 STL components in model forward pass
-
+parser.add_argument('--vis_encoder_dim', type=int, default=512) # Dimensionality of the vision encoder.
+parser.add_argument('--vis_encoder_name', type=str, default= 'CLIP')
 
 #args = parser.parse_args([])
 args = parser.parse_args()

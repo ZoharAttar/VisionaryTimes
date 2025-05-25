@@ -36,7 +36,9 @@ python -u train_TEMPO.py \
   --take_vis_by_feature 1 \
   --all_components 0 \
   --patch_size 1 \
-  --stride 1
+  --stride 1 \
+  --vis_encoder_dim 192 \
+  --vis_encoder_name DeiT-Tiny
 
 
 

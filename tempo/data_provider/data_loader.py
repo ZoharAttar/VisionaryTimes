@@ -1298,6 +1298,7 @@ class UEAloader(Dataset):
         
         
         df, labels = self.feature_df, self.labels_df
+        
 
         def save_object(obj, path):
             with open(path, 'wb') as f:
@@ -1397,6 +1398,9 @@ class UEAloader(Dataset):
             save_object(self.unique_sampels_ids, os.path.join(save_dir, 'unique_samples_ids.pkl'))
             save_object(self.samples, os.path.join(save_dir, 'samples.pkl'))
             print("Dataset saved")
+        # self.global_max = self.x.max()
+        self.global_max = None
+        print(f"Global max value in dataset: {self.global_max}")
         
 
     def __len__(self):
