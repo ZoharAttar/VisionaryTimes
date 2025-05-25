@@ -1253,11 +1253,12 @@ class UEAloader(Dataset):
         self.flag = flag
         self.all_df, self.labels_df = self.load_all(root_path, file_list=file_list, flag=flag)
         self.all_IDs = self.all_df.index.unique()  # all sample IDs (integer indices 0 ... num_samples-1)
+        self.vis_encoder_name = args.vis_encoder_name
 
         try:
-            trend_path = f'./Pics_embed/{self.data_name.lower()}_trend_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
-            season_path = f'./Pics_embed/{self.data_name.lower()}_season_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
-            noise_path = f'./Pics_embed/{self.data_name.lower()}_noise_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
+            trend_path = f'./Pics_embed/{self.data_name.lower()}_{self.vis_encoder_name}_trend_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
+            season_path = f'./Pics_embed/{self.data_name.lower()}_{self.vis_encoder_name}_season_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
+            noise_path = f'./Pics_embed/{self.data_name.lower()}_{self.vis_encoder_name}_noise_embedding_{self.flag.lower()}_{self.take_vis_by_feature}.pth'
 
             if os.path.exists(trend_path) and self.vision:
                 print(trend_path)
@@ -1410,7 +1411,15 @@ class UEAloader(Dataset):
         x_resid = self.x_resid[indices]
         y = self.y[indices[0]]
 
-        dummy_shape = (1, 512)
+        if self.vis_encoder_name == 'CLIP':
+            dummy_shape = (1, 512)
+        elif self.vis_encoder_name == 'ViT':
+            dummy_shape = (1, 384)
+        elif self.vis_encoder_name == 'DeiT-Tiny':
+            dummy_shape = (1, 192)
+        else:
+            dummy_shape = (1, 512)
+
         if self.trend_vis_embed is not None:
             my_trend_vis_embed = self.trend_vis_embed[index] # TODO: in forecasting is a time series but in classification , now we get from [index] list of time series (by feature)
         else:

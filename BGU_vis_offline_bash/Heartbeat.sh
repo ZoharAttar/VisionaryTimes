@@ -31,5 +31,6 @@ python -u generate_vis_embed_offline.py \
   --create_offline_vision 1 \
   --vision 1 \
   --use_components 0 \
-  --target_data Heartbeat
-  
+  --target_data Heartbeat \
+  --vis_encoder_dim 192 \
+  --vis_encoder_name DeiT-Tiny

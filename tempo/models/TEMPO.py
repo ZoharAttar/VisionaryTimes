@@ -518,9 +518,11 @@ class TEMPO(nn.Module):
         
     def vision_embed(self, x_local, vis_embed, type = 'Trend'):
         # # x_local shape: [B*405, T, D] => [1620, 15, 768]
-        B = x_local.shape[0] // 405
-        T = x_local.shape[1]
-        D = x_local.shape[2]
+        ######################################## concat all 405 vis embeddings to each row ######################################
+        # B = x_local.shape[0] // 405
+        # T = x_local.shape[1]
+        # D = x_local.shape[2]
+        ##########################################################################################################################
 
         if type == 'Trend':
             vis_embed = self.vis_layer_trend(vis_embed)

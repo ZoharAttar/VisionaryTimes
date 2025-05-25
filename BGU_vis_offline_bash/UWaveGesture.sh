@@ -31,4 +31,6 @@ fi
   --vision 1 \
   --create_offline_vision 1 \
   --use_components 0 \
-  --target_data UWaveGestureLibrary 
+  --target_data UWaveGestureLibrary \
+  --vis_encoder_dim 192 \
+  --vis_encoder_name DeiT-Tiny

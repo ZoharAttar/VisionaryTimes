@@ -31,5 +31,7 @@ fi
   --create_offline_vision 1 \
   --vision 1 \
   --use_components 0 \
-  --target_data JapaneseVowels
+  --target_data JapaneseVowels \
+  --vis_encoder_dim 192 \
+  --vis_encoder_name DeiT-Tiny
   

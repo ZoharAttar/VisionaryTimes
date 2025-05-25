@@ -6,6 +6,10 @@ from transformers.models.gpt2.modeling_gpt2 import GPT2Model
 from transformers import BertTokenizer, BertModel
 from einops import rearrange
 from tempo.embed import DataEmbedding, DataEmbedding_wo_time
+from torchvision import models, transforms
+from transformers import AutoProcessor, AutoModel
+import torchvision.transforms as T
+from transformers import SiglipModel, SiglipProcessor, SiglipVisionModel
 from transformers.models.gpt2.configuration_gpt2 import GPT2Config
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 from tempo.utils.rev_in import RevIn
@@ -16,6 +20,7 @@ import warnings
 from omegaconf import OmegaConf
 import torch.nn.functional as F
 import clip
+import timm  
 from PIL import Image
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -105,13 +110,43 @@ class TEMPO(nn.Module):
         self.device = device
         self.vision = configs.vision
         self.use_components = configs.use_components
+        self.vis_encoder_name = configs.vis_encoder_name
 
         ############--adding vision support--#################    
         if self.vision:
-            self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
-            self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-            self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
-            self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+            if self.vis_encoder_name == "CLIP":
+                self.vis_encoder_dim = 512
+                self.vision_encoder, self.vision_encoder_preprocess = clip.load("ViT-B/32", device=self.device)
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+
+            elif self.vis_encoder_name == "ViT":
+                self.vis_encoder_dim = 384
+                self.vision_encoder = timm.create_model('vit_small_patch16_224', pretrained=True)  # Loads pretrained ViT (small) with 16x16 patch size.
+                self.vision_encoder.reset_classifier(0) # Removes the classification head to get raw image features.
+                self.vision_encoder_preprocess = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])]) # Standard preprocessing for ViT models from timm (RGB normalized to [-1, 1]).
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+
+            elif self.vis_encoder_name == "DeiT-Tiny":  # Data-efficient Image Transformer (DeiT) - Tiny variant
+                self.vis_encoder_dim = 192
+                self.vision_encoder = timm.create_model('deit_tiny_patch16_224', pretrained=True)
+                self.vision_encoder.reset_classifier(0)
+                self.vision_encoder_preprocess = transforms.Compose([
+                    transforms.Resize((224, 224)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])  # Matches DeiT training normalization
+                ])
+                self.vis_layer_trend = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_season = nn.Linear(configs.vis_encoder_dim, configs.d_model)
+                self.vis_layer_noise = nn.Linear(configs.vis_encoder_dim, configs.d_model)
         ############--adding vision support--#################    
 
         self.map_trend = nn.Linear(configs.seq_len, configs.seq_len)
@@ -530,9 +565,9 @@ class TEMPO(nn.Module):
                 filename = f"{label}.png"
                 self.residual_plot_counter += 1
             
-            ax.plot(time_steps, time_series, label=label)
-            ax.set_xlabel("Time Step")
-            ax.set_ylabel("Value")
+            ax.bar(time_steps, time_series, label=label)
+            ax.set_xlabel("Features")
+            ax.set_ylabel("Features Values")
             # ax.set_title(label)
             # ax.legend()
             
@@ -579,9 +614,9 @@ class TEMPO(nn.Module):
                     filename = f"{label}.png"
                     self.residual_plot_counter += 1
 
-                ax.plot(time_steps, time_series, label=label)
-                ax.set_xlabel("Time Step")
-                ax.set_ylabel("Value")
+                ax.bar(time_steps, time_series, label=label)
+                ax.set_xlabel("Features")
+                ax.set_ylabel("Features Values")
                 # ax.set_title(label)
                 # ax.legend()
                 
@@ -598,7 +633,7 @@ class TEMPO(nn.Module):
                 image = Image.open(buf).convert("RGB")
                 buf.close()
                 plt.close(fig)
-
+                
                 # Preprocess the image using the vision encoder's preprocess function
                 image_tensor = self.vision_encoder_preprocess(image).to(self.device)
                 images.append(image_tensor)
@@ -609,7 +644,13 @@ class TEMPO(nn.Module):
     def vision_embed(self, image, type='Trend'):
         # Process image and compute its embedding
         with torch.no_grad():
-            image_embed_vec = self.vision_encoder.encode_image(image)
+            if self.vis_encoder_name == "CLIP":
+                image_embed_vec = self.vision_encoder.encode_image(image)
+            elif self.vis_encoder_name == "SigLIP":
+                outputs = self.vision_encoder(image)
+                image_embed_vec = outputs.last_hidden_state.mean(dim=1)
+            else:
+                image_embed_vec = self.vision_encoder(image)
         image_embed_vec = image_embed_vec.to(self.vis_layer_trend.weight.dtype)
         return image_embed_vec
     
