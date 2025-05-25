@@ -28,7 +28,7 @@ fi
   --train_epochs 10 \
   --patience 5 \
   --enc_in $enc_in \
-  --vision 0 \
+  --vision 1 \
   --create_offline_vision 0 \
   --use_components 0 \
   --target_data UWaveGestureLibrary \

@@ -288,10 +288,15 @@ class TEMPO(nn.Module):
 
             # self.head_nf = configs.d_model * \
             #            int((configs.seq_len - patch_len) / stride + 2)
+            if self.patch_size == self.stride:
+                            self.patch_num = 1  
+
             if self.all_components:
                 self.head_nf =  3 * self.patch_num * configs.d_model
             else:
                 self.head_nf =  1 * self.patch_num * configs.d_model
+            
+            
             self.flatten = nn.Flatten(start_dim=-2) 
             self.dropout = nn.Dropout(configs.dropout)
             self.projection = nn.Linear(
@@ -429,10 +434,11 @@ class TEMPO(nn.Module):
         # [1620, 61, 1]
         x = rearrange(x, 'b l m -> b m l')
         # [1620, 1, 61]
-        x = self.padding_patch_layer(x) # 4, 1, 420 | add stride to seq_len
-        # [1620, 1, 61 + stride]
+        if self.patch_size != self.stride:
+            x = self.padding_patch_layer(x) # 4, 1, 420 | add stride to seq_len
+            # [1620, 1, 61 + stride]
         x = x.unfold(dimension=-1, size=self.patch_size, step=self.stride) #4,1, 64, 16 | patch size needs to be lower then seq_len+stride
-        # [1620, 1, 17, 1] ---> floor((65 - 1)/4) + 1 = 17 if stride=4
+        # [1620, 1, 17, 1] ---> floor((65 - 1)/4) + 1 = 17 if stride=4 | Number of patches = floor((L - patch_size) / stride) + 1
         x = rearrange(x, 'b m n p -> (b m) n p') # 4, 64, 16 [batch_size, number of patches, patch_size]
         # [1620, 17, 1]
         return x
@@ -511,7 +517,11 @@ class TEMPO(nn.Module):
             
         
     def vision_embed(self, x_local, vis_embed, type = 'Trend'):
-        # x local = [1620, 15, 768]
+        # # x_local shape: [B*405, T, D] => [1620, 15, 768]
+        B = x_local.shape[0] // 405
+        T = x_local.shape[1]
+        D = x_local.shape[2]
+
         if type == 'Trend':
             vis_embed = self.vis_layer_trend(vis_embed)
             # [4, 1, 405, 768]
@@ -526,6 +536,17 @@ class TEMPO(nn.Module):
             else:
                 vis_embed = vis_embed.squeeze(1) 
                 # [4, 405, 768]
+                ######################################## concat all 405 vis embeddings to each row ######################################
+                # # Repeat vis_embed[B, 405, D] -> [B, 405, 405, D]
+                # vis_embed_expanded = vis_embed.unsqueeze(2).repeat(1, 1, 405, 1)
+                # # Reshape to match x_local
+                # # Each of the 405 rows will get all 405 vision embeddings
+                # vis_embed_expanded = vis_embed_expanded.view(B * 405, 405, D)  # [1620, 405, D]
+
+                # # Now, x_local is [1620, 15, D], concat along time dimension
+                # x_local = torch.cat((vis_embed_expanded, x_local), dim=1)  # [1620, 420, D]
+                ##########################################################################################################################
+
                 B, num_vis_embed, d_model = vis_embed.shape
                 vis_embed= vis_embed.reshape(B*num_vis_embed, d_model)
                 # [1620, 768]
@@ -533,7 +554,7 @@ class TEMPO(nn.Module):
                 # [1620, 1, 768]
 
             x_local = torch.cat((vis_embed, x_local), dim=1) 
-            # [1620, 16, 768] or [1620, 15+61, 768] #TODO: check why 73 
+            # [1620, 16, 768] or [1620, 15+61, 768] #TODO: check why 73 - we checked and it is because of the prompt.
         if type == 'Season':
             vis_embed = self.vis_layer_season(vis_embed)
             if self.take_vis_by_feature == 0:
@@ -560,7 +581,6 @@ class TEMPO(nn.Module):
                 vis_embed = vis_embed.unsqueeze(1) 
 
             x_local = torch.cat((vis_embed, x_local), dim=1) 
-
         return x_local
 
     
@@ -673,7 +693,7 @@ class TEMPO(nn.Module):
             x_all = torch.cat((trend, season, noise), dim=1)
         else: 
             x_all = trend
-        # print(x_all.shape) #TODO: check wy dim 73 
+        # print(x_all.shape) #TODO: check wy dim 73 - it is because of the prompt.
         x = self.gpt2_trend(inputs_embeds =x_all).last_hidden_state  
         
         if self.take_vis_by_feature == 0:
@@ -714,7 +734,7 @@ class TEMPO(nn.Module):
                 x_all = torch.cat((trend, season, noise), dim=1) 
             else:
                 x_all = trend
-            # print("x_all shape before permute: ", x_all.shape)
+
             #[122, 150, 768] --> 150 is 3 * patch_size, 3 is the number of components
             x_all = x_all.reshape(B, num_cells, *x_all.shape[1:]) #return to [samples(rows = #cells * #features), features, tokens, d_model] (each row has 61 cells made of vectors of shape[150,768]) 
             #[2, 61, 150, 768]

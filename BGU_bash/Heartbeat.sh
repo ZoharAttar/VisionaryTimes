@@ -36,7 +36,7 @@ python -u train_TEMPO.py \
   --take_vis_by_feature 1 \
   --all_components 0 \
   --patch_size 1 \
-  --stride 8
+  --stride 4
 
 
   

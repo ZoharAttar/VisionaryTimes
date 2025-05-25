@@ -35,5 +35,5 @@ fi
   --prompt 1 \
   --take_vis_by_feature 1 \
   --all_components 0 \
-  --patch_size 12 \
-  --stride 4
+  --patch_size 2 \
+  --stride 6

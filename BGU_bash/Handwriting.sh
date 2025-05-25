@@ -36,4 +36,4 @@ fi
   --take_vis_by_feature 1 \
   --all_components 0 \
   --patch_size 3 \
-  --stride 1
+  --stride 2
